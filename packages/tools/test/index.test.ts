@@ -5,7 +5,7 @@ import { buildToolDefinitions, toMcpTools, toOpenAITools, toolDefinitions } from
 
 describe("buildToolDefinitions", () => {
   it("renders exactly one tool per registered query, with unique names", () => {
-    expect(toolDefinitions).toHaveLength(9);
+    expect(toolDefinitions).toHaveLength(13);
     expect(toolDefinitions).toHaveLength(queries.length);
 
     const names = toolDefinitions.map((t) => t.name);
