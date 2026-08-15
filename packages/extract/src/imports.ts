@@ -44,6 +44,13 @@ export function createResolver(
     // simply fails membership below.
     const norm = posix.normalize(candidate);
     if (repoFiles.has(norm)) return norm;
+
+    // NodeNext/ESM: a specifier ending in `.js`/`.jsx` refers to the sibling
+    // `.ts`/`.tsx` source at build time. Try that remap before treating the
+    // `.js` as a literal extension to append onto.
+    const remapped = remapJsToTs(norm);
+    if (remapped && repoFiles.has(remapped)) return remapped;
+
     for (const ext of EXTENSIONS) {
       if (repoFiles.has(norm + ext)) return norm + ext;
     }
@@ -73,6 +80,18 @@ export function createResolver(
     // Anything else is a bare package specifier — external, not in the model.
     return undefined;
   };
+}
+
+/**
+ * Rewrites a `.js`/`.jsx` extension to its TypeScript source counterpart
+ * (`.ts`/`.tsx`), for NodeNext-style specifiers where the emitted `.js`
+ * name stands in for `.ts` source. Returns `undefined` when there's no such
+ * extension to remap.
+ */
+function remapJsToTs(candidate: string): string | undefined {
+  if (candidate.endsWith(".js")) return candidate.slice(0, -3) + ".ts";
+  if (candidate.endsWith(".jsx")) return candidate.slice(0, -4) + ".tsx";
+  return undefined;
 }
 
 /**
