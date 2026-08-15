@@ -28,8 +28,12 @@ export interface CodeExtraction {
   calls: CallsEdge[];
   entrypoints: EntrypointNode[];
   handledBy: HandledByEdge[];
+  /** Call sites that produced an edge. */
   callsResolved: number;
-  callsTotal: number;
+  /** Resolution-rate denominator: calls whose callee is a known in-repo symbol. */
+  callsInScope: number;
+  /** Every call site observed, raw (reported alongside the rate). */
+  callsObserved: number;
 }
 
 /**
@@ -88,7 +92,8 @@ export function extractCode(
   const entrypoints: EntrypointNode[] = [];
   const handledBy: HandledByEdge[] = [];
   let callsResolved = 0;
-  let callsTotal = 0;
+  let callsInScope = 0;
+  let callsObserved = 0;
 
   for (const { file, sourceFile } of paired) {
     const local = perFile.get(file.relPath)!;
@@ -106,7 +111,8 @@ export function extractCode(
     );
     calls.push(...callRes.calls);
     callsResolved += callRes.callsResolved;
-    callsTotal += callRes.callsTotal;
+    callsInScope += callRes.callsInScope;
+    callsObserved += callRes.callsObserved;
 
     const entry = extractEntrypoints(sourceFile, repoId, file.relPath, local.symbols);
     entrypoints.push(...entry.entrypoints);
@@ -121,7 +127,8 @@ export function extractCode(
     entrypoints,
     handledBy,
     callsResolved,
-    callsTotal,
+    callsInScope,
+    callsObserved,
   };
 }
 

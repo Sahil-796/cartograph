@@ -237,15 +237,29 @@ export interface CoChangedEdge {
  * shape is fixed for downstream consumers from the start.
  */
 export interface ExtractionStats {
-  /** Number of call sites successfully resolved to a known `SymbolNode`. */
+  /** Number of call sites that produced a `Symbol → Symbol` edge. */
   callsResolved: number;
-  /** Total number of call sites observed (resolved + unresolved). */
-  callsTotal: number;
   /**
-   * `callsResolved / callsTotal`, in `[0, 1]`. `1` when `callsTotal` is
-   * `0` (nothing to resolve, so nothing failed). The single honest
-   * quality metric for the whole extractor — how much of the call graph
-   * could actually be tied back to a known symbol.
+   * The resolution-rate **denominator**: call sites whose callee resolves
+   * to a known in-repo `SymbolNode` — i.e. the calls we actually attempt
+   * to trace. Excludes out-of-scope shapes (method/property calls, calls
+   * into external packages, unknown globals) that point at nothing in the
+   * model; counting those would conflate "out of scope" with "failed to
+   * resolve". A call can be in scope yet unresolved when its *caller* is a
+   * module-top-level statement with no enclosing symbol to attribute to.
+   */
+  callsInScope: number;
+  /**
+   * Every `CallExpression` observed, raw. Reported for honesty so the rate
+   * can't hide how much of the source is method/library calls the model
+   * doesn't trace. On real TS apps this is many times `callsInScope`.
+   */
+  callsObserved: number;
+  /**
+   * `callsResolved / callsInScope`, in `[0, 1]`. `1` when `callsInScope`
+   * is `0` (nothing in scope to resolve). The headline honesty metric —
+   * of the calls that target a symbol we model, how many we tied back to
+   * it. Reported to the UI and fed into every AI tool result.
    */
   callResolutionRate: number;
 }

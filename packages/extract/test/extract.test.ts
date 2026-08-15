@@ -42,11 +42,12 @@ describe("extractRepo (end-to-end composition)", () => {
     expect(payload.authors).toEqual([]);
     expect(payload.coChanged).toEqual([]);
 
-    // Honest metric: 6 call sites observed, 2 resolved.
+    // Honest metric: 6 observed, 3 in scope, 2 resolved → rate 2/3.
     expect(payload.stats).toEqual({
-      callsTotal: 6,
+      callsObserved: 6,
+      callsInScope: 3,
       callsResolved: 2,
-      callResolutionRate: 2 / 6,
+      callResolutionRate: 2 / 3,
     });
   });
 });

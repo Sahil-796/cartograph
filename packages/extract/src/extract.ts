@@ -94,9 +94,10 @@ export async function extractRepo(
   // 6. Co-change coupling, derived from the touch history.
   const coChanged = computeCoChange(commits, touched, repoId);
 
-  // 7. Honest quality metric — how much of the call graph resolved.
+  // 7. Honest quality metric — of the calls we attempt (callee is a known
+  //    in-repo symbol), how many became edges. Raw observed count kept too.
   const callResolutionRate =
-    code.callsTotal === 0 ? 1 : code.callsResolved / code.callsTotal;
+    code.callsInScope === 0 ? 1 : code.callsResolved / code.callsInScope;
 
   return {
     repo,
@@ -113,7 +114,8 @@ export async function extractRepo(
     coChanged,
     stats: {
       callsResolved: code.callsResolved,
-      callsTotal: code.callsTotal,
+      callsInScope: code.callsInScope,
+      callsObserved: code.callsObserved,
       callResolutionRate,
     },
   };

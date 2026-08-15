@@ -38,10 +38,18 @@ describe("extractCalls (via extractCode, cross-file resolution)", () => {
     expect(out.calls).toHaveLength(2);
   });
 
-  it("counts every call site, resolved and not, with the honest metric", () => {
-    // math.ts: add(n,n) [resolved], helper() at top level [counted, no owner].
-    // main.ts: add() [resolved], console.log, readFileSync, unknownGlobal [3 skipped].
-    expect(out.callsTotal).toBe(6);
+  it("counts call sites with the honest in-scope metric", () => {
+    // Observed (every CallExpression) = 6:
+    //   math.ts: add(n,n), helper()
+    //   main.ts: add(), console.log(), readFileSync(), unknownGlobal()
+    expect(out.callsObserved).toBe(6);
+    // In scope (callee resolves to a known in-repo symbol) = 3:
+    //   add(n,n) -> math#add, add() -> math#add, helper() -> math#helper.
+    //   console.log (member), readFileSync (external), unknownGlobal (unknown)
+    //   all point at nothing in the model -> out of scope, excluded.
+    expect(out.callsInScope).toBe(3);
+    // Resolved = 2: the two add() calls. helper() is in scope but its caller
+    // is module-top-level (no enclosing symbol), so no edge is emitted.
     expect(out.callsResolved).toBe(2);
   });
 });

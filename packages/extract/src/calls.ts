@@ -11,8 +11,25 @@ import type { ImportMap } from "./imports.js";
  */
 export interface CallExtraction {
   calls: CallsEdge[];
+  /** Call sites that produced a `Symbol → Symbol` edge. */
   callsResolved: number;
-  callsTotal: number;
+  /**
+   * The honest denominator: call sites whose *callee* resolves to a known
+   * in-repo symbol — i.e. calls we actually attempt to trace. A resolved
+   * call can still fail to become an edge if its *caller* is module-top
+   * (no enclosing symbol); those count here but not in `callsResolved`.
+   * Excludes out-of-scope shapes entirely: method/property calls
+   * (`obj.m()`), calls into external packages, and unknown globals — none
+   * of which point at anything in the model, so counting them would
+   * conflate "out of scope" with "failed to resolve".
+   */
+  callsInScope: number;
+  /**
+   * Every `CallExpression` observed, raw — reported for honesty so the
+   * in-scope rate can't hide how much of the code is method/library calls
+   * the model doesn't trace. Not the resolution-rate denominator.
+   */
+  callsObserved: number;
 }
 
 /**
@@ -51,21 +68,29 @@ export function extractCalls(
   knownSymbolIds: ReadonlySet<string>,
 ): CallExtraction {
   const calls: CallsEdge[] = [];
-  let callsTotal = 0;
+  let callsObserved = 0;
+  let callsInScope = 0;
 
   for (const call of sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    callsTotal++;
+    callsObserved++;
 
-    const fromSymbolId = findEnclosingSymbolId(call, relPath, localSymbolNames);
-    if (!fromSymbolId) continue; // module-top-level call: counted, not attributed
-
+    // Callee first: does this call even point at something in the model?
+    // If not (method call, external package, unknown global), it is out of
+    // scope and never enters the resolution-rate denominator.
     const toSymbolId = resolveCallee(call, relPath, importMap, localSymbolNames, knownSymbolIds);
-    if (!toSymbolId) continue; // unresolved / ambiguous: counted, no edge
+    if (!toSymbolId) continue;
+    callsInScope++;
+
+    // In-scope target, but the caller may be a module-top-level call with
+    // no enclosing top-level symbol to attribute the edge to. That counts
+    // against the rate (in scope, unresolved) rather than being skipped.
+    const fromSymbolId = findEnclosingSymbolId(call, relPath, localSymbolNames);
+    if (!fromSymbolId) continue;
 
     calls.push({ repoId, fromSymbolId, toSymbolId });
   }
 
-  return { calls, callsResolved: calls.length, callsTotal };
+  return { calls, callsResolved: calls.length, callsInScope, callsObserved };
 }
 
 /**
