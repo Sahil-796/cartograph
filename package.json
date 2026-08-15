@@ -6,6 +6,9 @@
   "type": "module",
   "scripts": {
     "build": "pnpm -r --if-present run build",
-    "typecheck": "pnpm -r --if-present run typecheck"
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "test": "pnpm -r --if-present run test",
+    "db:init": "pnpm --filter @cartograph/graph run db:init",
+    "db:ping": "pnpm --filter @cartograph/graph run db:ping"
   }
 }

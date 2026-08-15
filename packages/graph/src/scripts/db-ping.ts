@@ -8,7 +8,9 @@ async function main(): Promise<void> {
   const result = await withSession(async (session) => {
     return session.run("RETURN 1 AS ok");
   });
-  const value = result.records[0]?.get("ok");
+  const raw = result.records[0]?.get("ok");
+  // neo4j returns integers as its own Integer type; render as a plain number.
+  const value = typeof raw?.toNumber === "function" ? raw.toNumber() : raw;
 
   console.log(`RETURN 1 -> ${value}`);
   console.log(`Server agent: ${serverInfo.agent}`);

@@ -9,7 +9,7 @@
     "db:init": "tsx src/scripts/db-init.ts",
     "db:ping": "tsx src/scripts/db-ping.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@cartograph/config": "workspace:*",
