@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+dist
+**/dist
+.git
+.env
+.env.*
+**/*.tsbuildinfo
+coverage
+**/coverage
+docs
+plan.html
+*.log
+.DS_Store
