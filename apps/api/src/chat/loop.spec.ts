@@ -153,6 +153,24 @@ describe('runChatLoop', () => {
     expect(executeQuery).not.toHaveBeenCalled();
   });
 
+  it('pins every tool invocation to the repository requested by the user', async () => {
+    const { callGroq } = scriptGroq([
+      {
+        role: 'assistant',
+        content: null,
+        tool_calls: [
+          { id: 'tc1', type: 'function', function: { name: 'search', arguments: JSON.stringify({ repoId: 'another-repo', term: 'router' }) } },
+        ],
+      },
+      { role: 'assistant', content: 'done [c1]', tool_calls: undefined },
+    ]);
+    const executeQuery = vi.fn(async () => []);
+
+    await runChatLoop(baseDeps(callGroq, executeQuery), 'hono', [{ role: 'user', content: 'search' }]);
+
+    expect(executeQuery).toHaveBeenCalledWith(expect.anything(), { repoId: 'hono', term: 'router' });
+  });
+
   it('caps tool execution at MAX_TOOL_STEPS then forces a tool-less final turn', async () => {
     // Every turn asks for one more tool call; the loop must stop offering
     // tools after the cap and force a final answer.

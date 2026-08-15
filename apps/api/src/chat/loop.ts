@@ -110,7 +110,10 @@ export async function runChatLoop(deps: LoopDeps, repoId: string, history: ChatM
 
     for (const call of toolCalls) {
       const name = call.function.name;
-      const args = parseArgs(call.function.arguments);
+      // The model is untrusted input. It may omit or even try to change the
+      // repoId despite the prompt, so enforce the request's repository at the
+      // execution boundary rather than trusting model instructions.
+      const args = { ...parseArgs(call.function.arguments), repoId };
       const id = `c${citations.length + 1}`;
 
       let rows: unknown[] = [];

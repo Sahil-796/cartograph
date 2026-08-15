@@ -1,17 +1,31 @@
 import { Node, type SourceFile, type VariableDeclaration } from "ts-morph";
 import type { DefinesEdge, SymbolNode } from "./payload.js";
+import { scopeChain, qualify } from "./scope.js";
 
 /**
- * Extracts the top-level named declarations from a single source file and
- * the `File → Symbol` edges that record where each was defined.
+ * Extracts the named declarations from a single source file and the
+ * `File → Symbol` edges that record where each was defined.
  *
- * "Top-level" is taken strictly: only declarations whose container is the
- * file itself (function/class declarations, and `const`/`let`/`var`
- * bindings in a top-level variable statement). We deliberately do NOT
- * descend into class bodies, nested functions, or block scopes — the
- * contract is file- and top-level-symbol-level only, and a method or a
- * closure is not independently addressable by the `${path}#${name}` id
- * scheme (two classes could each declare a `render` method, colliding).
+ * Scope: named declarations at ANY nesting depth —
+ *   - function declarations, top-level AND nested (`function runClaimedStep`
+ *     defined inside `createWorker`);
+ *   - class declarations;
+ *   - class methods, both `method() {}` and arrow/function class properties
+ *     (`handle = () => {}`);
+ *   - top-level `const`/`let`/`var` bindings (incl. arrow-function consts).
+ *
+ * A nested function or a method is made independently addressable by
+ * *qualifying* its id with the chain of enclosing named scopes (see
+ * `scope.ts`): `createWorker.runClaimedStep`, `Worker.run`. Two classes each
+ * declaring `render` therefore get distinct ids `A.render` / `B.render`
+ * instead of colliding. A file-top-level declaration has an empty scope chain,
+ * so its id stays exactly `${path}#${name}` — unchanged from before this walk
+ * existed. The `name` field is always the plain identifier, so a nested symbol
+ * is still findable by its simple name via search.
+ *
+ * What is deliberately still NOT captured: nested `const`/arrow bindings inside
+ * a function body (local callback helpers — high volume, low value), anonymous
+ * functions with no binding, and destructured bindings. See docs/limitations.md.
  *
  * Only declarations with a discoverable name are emitted; an anonymous
  * `export default () => {}` has no stable id and is skipped rather than
@@ -40,10 +54,19 @@ export function extractSymbols(
     name: string,
   ): boolean => decl.isExported() || decl.isDefaultExport() || exportedNames.has(name);
 
-  const push = (name: string, kind: SymbolNode["kind"], line: number, exported: boolean) => {
+  // `name` is the plain declared identifier (used for display + search);
+  // `scope` qualifies the id so nested/method symbols never collide. A
+  // top-level declaration passes `scope === ""`, keeping its historical id.
+  const push = (
+    name: string,
+    scope: string,
+    kind: SymbolNode["kind"],
+    line: number,
+    exported: boolean,
+  ) => {
     symbols.push({
       repoId,
-      id: `${relPath}#${name}`,
+      id: `${relPath}#${qualify(scope, name)}`,
       name,
       kind,
       path: relPath,
@@ -52,31 +75,49 @@ export function extractSymbols(
     });
   };
 
-  // Top-level function declarations: `function foo() {}` (incl. exported and
-  // default-exported forms). `getFunctions()` only returns file-level ones.
-  for (const fn of sourceFile.getFunctions()) {
-    const name = fn.getName();
-    if (!name) continue; // anonymous `export default function () {}` — no id
-    push(name, "function", fn.getStartLineNumber(), isExported(fn, name));
-  }
-
-  // Top-level class declarations.
-  for (const cls of sourceFile.getClasses()) {
-    const name = cls.getName();
-    if (!name) continue;
-    push(name, "class", cls.getStartLineNumber(), isExported(cls, name));
-  }
+  // A single descendant walk captures declarations at every depth. Top-level
+  // forms get an empty scope chain (unchanged ids); nested forms get a dotted
+  // qualifier. Only a *module-top* function/class is treated as potentially
+  // exported — a nested function or a method is internal to its enclosing
+  // scope and never a module export.
+  sourceFile.forEachDescendant((node) => {
+    if (Node.isFunctionDeclaration(node)) {
+      const name = node.getName();
+      if (!name) return; // anonymous `export default function () {}` — no id
+      const scope = scopeChain(node);
+      push(name, scope, "function", node.getStartLineNumber(), scope === "" && isExported(node, name));
+    } else if (Node.isClassDeclaration(node)) {
+      const name = node.getName();
+      if (!name) return;
+      const scope = scopeChain(node);
+      push(name, scope, "class", node.getStartLineNumber(), scope === "" && isExported(node, name));
+    } else if (Node.isMethodDeclaration(node)) {
+      const name = node.getName();
+      if (!name) return;
+      push(name, scopeChain(node), "method", node.getStartLineNumber(), false);
+    } else if (Node.isPropertyDeclaration(node)) {
+      // Class field holding a function value: `handle = () => {}` /
+      // `handle = function () {}` — a method in all but syntax.
+      const init = node.getInitializer();
+      if (init && (Node.isArrowFunction(init) || Node.isFunctionExpression(init))) {
+        const name = node.getName();
+        if (!name) return;
+        push(name, scopeChain(node), "method", node.getStartLineNumber(), false);
+      }
+    }
+  });
 
   // Top-level variable bindings: `const x = ...`, including arrow functions
   // assigned to a binding (`const handler = () => {}`), which we tag `arrow`
-  // so callers can tell a callable const from a plain value const.
+  // so callers can tell a callable const from a plain value const. Only
+  // module-top statements are taken (nested local consts are out of scope).
   for (const stmt of sourceFile.getVariableStatements()) {
     const exported = stmt.isExported();
     for (const decl of stmt.getDeclarations()) {
       const name = decl.getName();
       if (!name) continue; // destructuring patterns have no single name — skip
       const kind = isArrowBinding(decl) ? "arrow" : "const";
-      push(name, kind, decl.getStartLineNumber(), exported || exportedNames.has(name));
+      push(name, "", kind, decl.getStartLineNumber(), exported || exportedNames.has(name));
     }
   }
 

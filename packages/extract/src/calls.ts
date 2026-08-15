@@ -1,6 +1,7 @@
-import { Node, SyntaxKind, type CallExpression, type SourceFile } from "ts-morph";
+import { Node, SyntaxKind, type CallExpression, type ClassDeclaration, type SourceFile } from "ts-morph";
 import type { CallsEdge } from "./payload.js";
 import type { ImportMap } from "./imports.js";
+import { scopeChain, qualify, qualifiedId } from "./scope.js";
 
 /**
  * Result of walking one file's call sites. `callsTotal` counts *every*
@@ -55,7 +56,9 @@ export interface CallExtraction {
  * granularity and are never guessed.
  *
  * @param importMap Local-name → import binding for this file.
- * @param localSymbolNames Names of this file's own top-level symbols.
+ * @param localSymbolIds Every `SymbolNode.id` DEFINED in this file — used to
+ *   attribute a call to its nearest enclosing recorded symbol and to resolve
+ *   bare calls to a lexically-visible nested function.
  * @param knownSymbolIds Every `SymbolNode.id` in the repo, for membership
  *   testing so we only emit edges pointing at a symbol that truly exists.
  */
@@ -64,7 +67,7 @@ export function extractCalls(
   repoId: string,
   relPath: string,
   importMap: ImportMap,
-  localSymbolNames: ReadonlySet<string>,
+  localSymbolIds: ReadonlySet<string>,
   knownSymbolIds: ReadonlySet<string>,
 ): CallExtraction {
   const calls: CallsEdge[] = [];
@@ -75,16 +78,16 @@ export function extractCalls(
     callsObserved++;
 
     // Callee first: does this call even point at something in the model?
-    // If not (method call, external package, unknown global), it is out of
-    // scope and never enters the resolution-rate denominator.
-    const toSymbolId = resolveCallee(call, relPath, importMap, localSymbolNames, knownSymbolIds);
+    // If not (external package, unknown global, cross-instance method), it is
+    // out of scope and never enters the resolution-rate denominator.
+    const toSymbolId = resolveCallee(call, relPath, importMap, localSymbolIds, knownSymbolIds);
     if (!toSymbolId) continue;
     callsInScope++;
 
-    // In-scope target, but the caller may be a module-top-level call with
-    // no enclosing top-level symbol to attribute the edge to. That counts
-    // against the rate (in scope, unresolved) rather than being skipped.
-    const fromSymbolId = findEnclosingSymbolId(call, relPath, localSymbolNames);
+    // In-scope target, but the caller may be a module-top-level call with no
+    // enclosing recorded symbol to attribute the edge to. That counts against
+    // the rate (in scope, unresolved) rather than being skipped.
+    const fromSymbolId = findEnclosingSymbolId(call, relPath, localSymbolIds);
     if (!fromSymbolId) continue;
 
     calls.push({ repoId, fromSymbolId, toSymbolId });
@@ -94,51 +97,65 @@ export function extractCalls(
 }
 
 /**
- * Walks up from a call to the nearest enclosing top-level declaration that
- * corresponds to a recorded symbol, returning its `${relPath}#${name}` id.
- * "Top-level" means the declaration's container is the file itself, so a
- * call inside a nested function or a class method is attributed to the
- * enclosing top-level function/class — never to the un-addressable inner
- * scope. Returns `undefined` for calls that sit at module top level.
+ * Walks up from a call to the nearest enclosing declaration that corresponds
+ * to a RECORDED symbol, returning its qualified `${relPath}#${qualified}` id.
+ *
+ * Because the symbol extractor now records nested functions and methods, a
+ * call inside `runClaimedStep` is attributed to `createWorker.runClaimedStep`,
+ * and a call inside a method to `Class.method` — the nearest addressable owner,
+ * not the outermost one. Returns `undefined` for calls at module top level
+ * (no enclosing symbol) or inside an unrecorded scope (e.g. a local arrow
+ * callback we don't index).
  */
 function findEnclosingSymbolId(
   call: CallExpression,
   relPath: string,
-  localSymbolNames: ReadonlySet<string>,
+  localSymbolIds: ReadonlySet<string>,
 ): string | undefined {
   for (const anc of call.getAncestors()) {
     let name: string | undefined;
-
-    if (Node.isFunctionDeclaration(anc) && Node.isSourceFile(anc.getParent())) {
+    if (Node.isFunctionDeclaration(anc) || Node.isClassDeclaration(anc) || Node.isMethodDeclaration(anc)) {
       name = anc.getName();
-    } else if (Node.isClassDeclaration(anc) && Node.isSourceFile(anc.getParent())) {
-      name = anc.getName();
+    } else if (Node.isPropertyDeclaration(anc)) {
+      const init = anc.getInitializer();
+      if (init && (Node.isArrowFunction(init) || Node.isFunctionExpression(init))) name = anc.getName();
     } else if (Node.isVariableDeclaration(anc)) {
-      // Only top-level bindings: the owning statement's parent is the file.
-      const stmt = anc.getVariableStatement();
-      if (stmt && Node.isSourceFile(stmt.getParent())) name = anc.getName();
+      // A callable binding: `const double = () => { add(n, n) }`. Recorded as a
+      // top-level `arrow`/`const` symbol, so a call inside it must be attributed
+      // to that binding. Nested local bindings aren't recorded, so the
+      // `localSymbolIds` membership test below correctly rejects them.
+      const init = anc.getInitializer();
+      if (init && (Node.isArrowFunction(init) || Node.isFunctionExpression(init))) name = anc.getName();
     }
+    if (!name) continue;
 
-    if (name && localSymbolNames.has(name)) return `${relPath}#${name}`;
+    const id = `${relPath}#${qualify(scopeChain(anc), name)}`;
+    if (localSymbolIds.has(id)) return id;
   }
   return undefined;
 }
 
 /**
- * Resolves a call's callee to a known `SymbolNode.id`, or `undefined` when
- * it can't be pinned to exactly one. Handles bare identifiers and
- * namespace-member accesses only; all other callee shapes are ambiguous.
+ * Resolves a call's callee to a known `SymbolNode.id`, or `undefined` when it
+ * can't be pinned to exactly one. Handles three unambiguous shapes:
+ *   - bare `foo()` imported from another file (`import { foo }`);
+ *   - bare `foo()` resolving to a lexically-visible symbol in this file,
+ *     preferring the nearest enclosing scope (so a nested `runClaimedStep`
+ *     shadows a hypothetical top-level one);
+ *   - `this.foo()` resolving to a method of the enclosing class.
+ * plus namespace-member `ns.foo()`. All other member calls (`obj.foo()` on an
+ * arbitrary instance, chained calls) stay ambiguous and are never guessed.
  */
 function resolveCallee(
   call: CallExpression,
   relPath: string,
   importMap: ImportMap,
-  localSymbolNames: ReadonlySet<string>,
+  localSymbolIds: ReadonlySet<string>,
   knownSymbolIds: ReadonlySet<string>,
 ): string | undefined {
   const expr = call.getExpression();
 
-  // Bare `foo()` — imported name first, then same-file top-level symbol.
+  // Bare `foo()` — imported name first, then a lexically-visible local symbol.
   if (Node.isIdentifier(expr)) {
     const name = expr.getText();
 
@@ -146,19 +163,37 @@ function resolveCallee(
     if (binding && binding.importedName !== "default" && binding.importedName !== "*") {
       const id = `${binding.targetPath}#${binding.importedName}`;
       if (knownSymbolIds.has(id)) return id;
-      return undefined; // imported, but target isn't a known top-level symbol
+      return undefined; // imported, but target isn't a known symbol
     }
 
-    if (localSymbolNames.has(name)) {
-      const id = `${relPath}#${name}`;
-      if (knownSymbolIds.has(id)) return id;
+    // Lexical resolution: try the call's own scope first, then each enclosing
+    // scope outward, so `runClaimedStep()` inside `createWorker` resolves to
+    // `createWorker.runClaimedStep` before any top-level `runClaimedStep`.
+    for (const prefix of enclosingScopePrefixes(call)) {
+      const id = qualifiedId(relPath, prefix, name);
+      if (localSymbolIds.has(id)) return id;
     }
     return undefined;
   }
 
-  // `ns.foo()` where `ns` is a namespace import (`import * as ns`).
   if (Node.isPropertyAccessExpression(expr)) {
     const obj = expr.getExpression();
+
+    // `this.foo()` — unambiguous within a class: `this` is the enclosing class
+    // instance, so the callee is that class's `foo` method (or arrow property).
+    if (obj.getKind() === SyntaxKind.ThisKeyword) {
+      const cls = findEnclosingClass(call);
+      if (cls) {
+        const clsName = cls.getName();
+        if (clsName) {
+          const id = `${relPath}#${qualify(scopeChain(cls), clsName)}.${expr.getName()}`;
+          if (localSymbolIds.has(id)) return id;
+        }
+      }
+      return undefined;
+    }
+
+    // `ns.foo()` where `ns` is a namespace import (`import * as ns`).
     if (Node.isIdentifier(obj)) {
       const binding = importMap.get(obj.getText());
       if (binding && binding.importedName === "*") {
@@ -166,9 +201,49 @@ function resolveCallee(
         if (knownSymbolIds.has(id)) return id;
       }
     }
-    // Any other member call (instance methods, chained calls) is ambiguous.
+    // Any other member call (arbitrary instance methods, chained calls) is
+    // ambiguous at this granularity and never guessed.
     return undefined;
   }
 
+  return undefined;
+}
+
+/**
+ * The scope-chain prefixes visible from `call`, innermost first, ending with
+ * `""` (module top). e.g. a call inside function `createWorker` yields
+ * `["createWorker", ""]`; a call inside method `run` of class `Worker` yields
+ * `["Worker.run", "Worker", ""]`. Used to resolve a bare identifier to the
+ * nearest lexically-enclosing declaration of that name.
+ */
+function enclosingScopePrefixes(call: CallExpression): string[] {
+  const prefixes: string[] = [];
+  const seen = new Set<string>();
+  for (const anc of call.getAncestors()) {
+    let name: string | undefined;
+    if (Node.isFunctionDeclaration(anc) || Node.isClassDeclaration(anc) || Node.isMethodDeclaration(anc)) {
+      name = anc.getName();
+    } else if (Node.isPropertyDeclaration(anc)) {
+      name = anc.getName();
+    } else if (Node.isVariableDeclaration(anc)) {
+      const init = anc.getInitializer();
+      if (init && (Node.isArrowFunction(init) || Node.isFunctionExpression(init))) name = anc.getName();
+    }
+    if (!name) continue;
+    const chain = qualify(scopeChain(anc), name);
+    if (!seen.has(chain)) {
+      seen.add(chain);
+      prefixes.push(chain);
+    }
+  }
+  prefixes.push(""); // module top level
+  return prefixes;
+}
+
+/** The nearest `class` ancestor of a node, or `undefined`. */
+function findEnclosingClass(node: CallExpression): ClassDeclaration | undefined {
+  for (const anc of node.getAncestors()) {
+    if (Node.isClassDeclaration(anc)) return anc;
+  }
   return undefined;
 }

@@ -72,18 +72,18 @@ export function extractCode(
   const symbols: SymbolNode[] = [];
   const defines: DefinesEdge[] = [];
   const knownSymbolIds = new Set<string>();
-  const perFile = new Map<string, { names: Set<string>; symbols: SymbolNode[] }>();
+  const perFile = new Map<string, { ids: Set<string>; symbols: SymbolNode[] }>();
 
   for (const { file, sourceFile } of paired) {
     const res = extractSymbols(sourceFile, repoId, file.relPath);
     symbols.push(...res.symbols);
     defines.push(...res.defines);
-    const names = new Set<string>();
+    const ids = new Set<string>();
     for (const s of res.symbols) {
       knownSymbolIds.add(s.id);
-      names.add(s.name);
+      ids.add(s.id);
     }
-    perFile.set(file.relPath, { names, symbols: res.symbols });
+    perFile.set(file.relPath, { ids, symbols: res.symbols });
   }
 
   // Pass 2 — imports, calls, entrypoints (all depend on the symbol index).
@@ -118,7 +118,7 @@ export function extractCode(
       repoId,
       file.relPath,
       importMap,
-      local.names,
+      local.ids,
       knownSymbolIds,
     );
     calls.push(...callRes.calls);
