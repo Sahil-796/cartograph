@@ -1,0 +1,1241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cartograph — Build Plan</title>
+<style>
+  :root {
+    --bg: #fbfaf8;
+    --surface: #ffffff;
+    --ink: #16150f;
+    --ink-2: #55524a;
+    --ink-3: #8a877d;
+    --rule: #e6e2da;
+    --accent: #1e5f7a;
+    --accent-soft: #e6f0f4;
+    --green: #2f6b45;
+    --green-soft: #e7f1ea;
+    --warn: #b3541e;
+    --warn-soft: #f6ece4;
+    --grey-soft: #f0eee9;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14130f;
+      --surface: #1c1b16;
+      --ink: #f2efe7;
+      --ink-2: #b0aca1;
+      --ink-3: #7d7a71;
+      --rule: #2e2c25;
+      --accent: #6ab4d1;
+      --accent-soft: #172429;
+      --green: #7fb894;
+      --green-soft: #1b2620;
+      --warn: #e08b53;
+      --warn-soft: #2b2018;
+      --grey-soft: #26241e;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 4rem 1.5rem 6rem; }
+
+  header { border-bottom: 2px solid var(--ink); padding-bottom: 1.5rem; margin-bottom: 3rem; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .7rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 .75rem;
+  }
+  h1 { font-size: clamp(1.9rem, 5vw, 2.9rem); line-height: 1.1; margin: 0 0 .75rem; letter-spacing: -.02em; }
+  .lede { font-size: 1.06rem; color: var(--ink-2); margin: 0; max-width: 62ch; }
+  .meta {
+    font-family: var(--mono);
+    font-size: .72rem;
+    color: var(--ink-3);
+    margin-top: 1.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+  }
+
+  h2 {
+    font-size: 1.35rem;
+    letter-spacing: -.01em;
+    margin: 3.5rem 0 .5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--rule);
+  }
+  h2 .num { font-family: var(--mono); font-size: .8rem; color: var(--accent); margin-right: .6rem; }
+  h3.sub { font-size: 1rem; margin: 2rem 0 .6rem; letter-spacing: -.01em; }
+  .section-note { color: var(--ink-2); margin: 0 0 1.75rem; max-width: 66ch; }
+
+  p { max-width: 68ch; }
+  a { color: var(--accent); }
+  code {
+    font-family: var(--mono);
+    font-size: .84em;
+    background: var(--grey-soft);
+    padding: .12em .38em;
+    border-radius: 3px;
+  }
+  pre {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+    padding: 1rem 1.2rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: .8rem;
+    line-height: 1.55;
+    margin: 1rem 0;
+  }
+  pre code { background: none; padding: 0; font-size: 1em; }
+
+  .callout {
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    padding: 1.15rem 1.35rem;
+    margin: 1.75rem 0;
+    border-radius: 0 6px 6px 0;
+  }
+  .callout.warn { background: var(--warn-soft); border-left-color: var(--warn); }
+  .callout p { margin: 0; max-width: none; }
+  .callout p + p { margin-top: .75rem; }
+
+  .decisions { list-style: none; padding: 0; margin: 0; }
+  .decisions li {
+    display: grid;
+    grid-template-columns: 11rem 1fr;
+    gap: 1rem;
+    padding: .8rem 0;
+    border-bottom: 1px solid var(--rule);
+    align-items: baseline;
+  }
+  .decisions .k {
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .decisions .v { color: var(--ink); }
+  .decisions .v em { color: var(--ink-2); font-style: normal; display: block; font-size: .9rem; margin-top: .2rem; }
+
+  .item {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 1.4rem 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .item-head { display: flex; align-items: baseline; gap: .75rem; flex-wrap: wrap; margin-bottom: .6rem; }
+  .item-head h3 { font-size: 1.05rem; margin: 0; letter-spacing: -.01em; }
+  .id { font-family: var(--mono); font-size: .74rem; color: var(--ink-3); }
+  .chip {
+    font-family: var(--mono);
+    font-size: .66rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: .2rem .5rem;
+    border-radius: 20px;
+    background: var(--grey-soft);
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .chip.core { background: var(--green-soft); color: var(--green); }
+  .chip.opt { background: var(--warn-soft); color: var(--warn); }
+  .chip.cut { background: var(--grey-soft); color: var(--ink-3); }
+
+  .item p { margin: .5rem 0; color: var(--ink-2); }
+  .item p.what { color: var(--ink); }
+  .fields { margin-top: .9rem; border-top: 1px dashed var(--rule); padding-top: .8rem; display: grid; gap: .4rem; }
+  .field { display: grid; grid-template-columns: 6.5rem 1fr; gap: .8rem; font-size: .88rem; align-items: baseline; }
+  .field .k {
+    font-family: var(--mono);
+    font-size: .66rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .field .v { color: var(--ink-2); }
+  .field .v code { font-size: .8em; }
+
+  .scroll { overflow-x: auto; margin: 1.5rem 0; }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; min-width: 560px; }
+  th, td { text-align: left; padding: .65rem .8rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    border-bottom: 1px solid var(--ink-3);
+  }
+  td.yes { color: var(--green); }
+  td.no { color: var(--ink-3); }
+  td.mono, .mono-cell { font-family: var(--mono); font-size: .82rem; }
+
+  .ok { list-style: none; padding: 0; margin: 0; }
+  .ok li { padding: .7rem 0 .7rem 1.6rem; border-bottom: 1px solid var(--rule); position: relative; color: var(--ink-2); }
+  .ok li::before { content: "✓"; position: absolute; left: 0; color: var(--green); font-weight: 600; }
+  .ok li strong { color: var(--ink); font-weight: 600; }
+
+  .no-list { list-style: none; padding: 0; margin: 0; }
+  .no-list li { padding: .7rem 0 .7rem 1.6rem; border-bottom: 1px solid var(--rule); position: relative; color: var(--ink-2); }
+  .no-list li::before { content: "×"; position: absolute; left: .15rem; color: var(--warn); font-weight: 600; }
+  .no-list li strong { color: var(--ink); font-weight: 600; }
+
+  figure { margin: 1.75rem 0; }
+  figure svg { width: 100%; height: auto; display: block; }
+  figcaption { font-size: .82rem; color: var(--ink-3); margin-top: .6rem; font-family: var(--mono); }
+
+  .diagram-box { fill: var(--surface); stroke: var(--ink-3); stroke-width: 1.5; }
+  .diagram-box.derived { stroke-dasharray: 5 3; }
+  .diagram-label { fill: var(--ink); font-family: ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 600; }
+  .diagram-prop { fill: var(--ink-3); font-family: ui-monospace, monospace; font-size: 9.5px; }
+  .diagram-edge { stroke: var(--accent); stroke-width: 1.4; fill: none; }
+  .diagram-edge.derived { stroke-dasharray: 4 3; }
+  .diagram-edge-label { fill: var(--accent); font-family: ui-monospace, monospace; font-size: 9.5px; letter-spacing: .04em; }
+  .diagram-group { fill: none; stroke: var(--rule); stroke-width: 1; stroke-dasharray: 3 3; }
+  .diagram-group-label { fill: var(--ink-3); font-family: ui-monospace, monospace; font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; }
+
+  .phase {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 1.5rem 1.6rem;
+    margin-bottom: 1.25rem;
+  }
+  .phase.shipline { border-color: var(--green); border-width: 1.5px; }
+  .phase-head { display: flex; align-items: baseline; gap: .75rem; flex-wrap: wrap; margin-bottom: .25rem; }
+  .phase-head .pnum {
+    font-family: var(--mono);
+    font-size: .7rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .phase-head h3 { font-size: 1.15rem; margin: 0; letter-spacing: -.015em; }
+  .phase .goal { color: var(--ink-2); margin: .1rem 0 1.1rem; font-size: .95rem; }
+
+  .tasks { list-style: none; padding: 0; margin: 0 0 1.1rem; }
+  .tasks > li {
+    position: relative;
+    padding: .5rem 0 .5rem 1.5rem;
+    border-bottom: 1px solid var(--rule);
+    color: var(--ink-2);
+    font-size: .91rem;
+  }
+  .tasks > li::before {
+    content: "";
+    position: absolute;
+    left: .1rem;
+    top: .95rem;
+    width: 7px; height: 7px;
+    border: 1.5px solid var(--ink-3);
+    border-radius: 2px;
+  }
+  .tasks > li strong { color: var(--ink); font-weight: 600; }
+  .tasks > li code { font-size: .82em; }
+
+  .exit {
+    background: var(--green-soft);
+    border-left: 3px solid var(--green);
+    border-radius: 0 6px 6px 0;
+    padding: .85rem 1.1rem;
+    font-size: .89rem;
+    color: var(--ink-2);
+  }
+  .exit .k {
+    display: block;
+    font-family: var(--mono);
+    font-size: .64rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--green);
+    margin-bottom: .3rem;
+  }
+  .exit ul { margin: 0; padding-left: 1.1rem; }
+  .exit li { margin: .2rem 0; }
+
+  footer { margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--rule); font-size: .85rem; color: var(--ink-3); }
+
+  @media (max-width: 620px) {
+    .wrap { padding: 2.5rem 1.1rem 4rem; }
+    .decisions li, .field { grid-template-columns: 1fr; gap: .2rem; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">Wexa AI take-home · CognoDB</p>
+  <h1>Cartograph</h1>
+  <p class="lede">
+    A codebase and its history loaded into a graph database, then handed to an AI. We build the map
+    and the roads. We do not build the driver — any model, through the built-in chat or through MCP,
+    does the reasoning by calling our queries as tools.
+  </p>
+  <div class="meta">
+    <span>2026-08-15</span>
+    <span>6 phases</span>
+    <span>db: CognoDB (openCypher / Bolt)</span>
+    <span>name: working title</span>
+  </div>
+</header>
+
+<div class="callout">
+  <p><strong>The product in one sentence.</strong> Point it at a repository — a GitHub URL, a local
+  folder via CLI, or a dropped folder — and it builds a graph of every file, symbol, call, import,
+  commit and author. Then you explore that graph visually, or ask an AI about it in plain English.</p>
+  <p><strong>The bet.</strong> Most "code intelligence" tools bake in opinions: what's risky, what a
+  module means, what you should do. We store facts and expose traversals. The intelligence is rented,
+  not built — which is why the scope stays small and why the product gets better every time the models do.</p>
+</div>
+
+<div class="callout warn">
+  <p><strong>Revisions — grilling session, 2026-08-15.</strong> The decisions below supersede anything
+  later in this document they contradict. Kept as a visible log because the reasoning is interview material.</p>
+  <p><strong>Stack.</strong> Node · pnpm · React (Vite) · NestJS — <em>not</em> Bun / Turborepo / Next.js.
+  Package manager is pnpm; monorepo via pnpm workspaces. All <code>bun run</code> commands below read as
+  <code>pnpm</code>.</p>
+  <p><strong>Deploy.</strong> Frontend on Vercel; API + worker on Azure Container Apps as
+  <em>one</em> container app, <code>min = max = 1</code> replica. <code>git</code> must be installed in the
+  Dockerfile (slim/alpine base images omit it). No scale-to-zero (a polling worker must stay alive).</p>
+  <p><strong>Ingestion queue.</strong> BullMQ + free Redis (<code>REDIS_URL</code>, e.g. Upstash) — this
+  replaces the in-memory job store idea entirely. Worker lives in the same Nest deploy but uses a
+  <em>sandboxed / forked processor</em> so CPU-heavy ts-morph parsing runs in a child process and never
+  blocks the API event loop. Worker concurrency 1 (respects CognoDB c0). Redis does the locking, so
+  scaling replicas is safe later; single replica for now by choice, not necessity.</p>
+  <p><strong>Ingestion is core, not last.</strong> The landing page leads with a "paste a GitHub URL" box,
+  so live ingest is promoted ahead of the old phase 6: a minimal happy-path ingest (URL → job → clone →
+  extract → load → phase streaming, guardrails only) ships as <strong>phase 4a</strong>, before the UI
+  polish in 4b. Folder drop, eviction, and polished rejection copy remain the cuttable tail. The §08
+  cut-list rationale "nobody knows it was meant to do more" is now void.</p>
+  <p><strong>MCP moves early.</strong> Built right after the query layer (phase 3), not bundled with chat.
+  It is the most on-brand surface for Wexa (structured context for coding agents) and is nearly free once
+  <code>packages/tools</code> exists. <strong>Chat stays later and is the first AI surface cut.</strong></p>
+  <p><strong>Seed repos.</strong> Swap <code>zod</code> (a library with no routes and only ~40 huge files)
+  for a real TypeScript web app — papermark / dub / formbricks / inbox-zero, whichever lands nearest
+  600–900 files under the size caps. Keep <code>hono</code> and <code>drizzle-orm</code>. This gives
+  <code>Entrypoint</code> / <code>HANDLED_BY</code> real data and the map a proper node count. Demo data is
+  committed as <code>seed/*.json</code> (loaded at deploy); the live worker calls the identical
+  extractor + loader, so the seed proves the pipeline.</p>
+  <p><strong>Map — two shapes.</strong> Overview = <em>circle-packing bubbles</em> (d3-hierarchy
+  <code>pack</code>, styled with shadcn tokens, import arcs shown on hover only — not the force-directed
+  hairball). Focus view = force-directed on the 20–80 node neighbourhood, where the depth slider lives.
+  UI is React + Tailwind + shadcn, one global light/dark theme; CSS variables must be fed into the graph
+  canvas or it won't follow the theme.</p>
+  <p><strong>Balance &amp; honesty.</strong> Code structure and people get equal weight (structure is the
+  stronger graph argument; ownership makes it legible). Call resolution skips ambiguous calls rather than
+  guessing, and the coverage % ("1,240 of 1,680 calls traced") shows on the dashboard <em>and</em> is fed
+  into every AI tool result. Query set follows what the views + assignment need — must include the depth
+  traversal and at least one SQL-awkward query (cycles / coupling); coupling default depth ~2, tuned
+  against the seed repos.</p>
+  <p><strong>Query wiring.</strong> Shared registry (one <code>{name, description, params: zod, cypher,
+  map}</code> per query), thin Nest host: one generic <code>POST /api/query/:name</code> controller, chat
+  and MCP iterate the same registry. Fallback if it clogs: split into per-query Nest controllers that
+  import the same def — documented as the escape hatch, not built now.</p>
+</div>
+
+<h2><span class="num">00</span>Decisions locked</h2>
+<p class="section-note">
+  Resolved during design. Each one removes work rather than adding it. These are also the answers to
+  give in the follow-up interview, so they need to be defensible, not just convenient.
+</p>
+
+<ul class="decisions">
+  <li><span class="k">No inference</span><span class="v">The graph stores only facts
+    <em>AST output and <code>git log</code> output. No LLM-named clusters, no computed "risk score", no <code>Feature</code> nodes, no opinions persisted as data. If we can't point at the line of source or the commit it came from, it doesn't go in the graph.</em></span></li>
+  <li><span class="k">Aggregation ≠ intelligence</span><span class="v">Sums and decay stay in Cypher
+    <em>Weighted contribution per author is <code>SUM()</code> with a time decay — the same thing you'd write in SQL. It lives in the query layer because the alternative is dumping 8,000 commit rows into a context window and asking a model to do arithmetic.</em></span></li>
+  <li><span class="k">Language</span><span class="v">TypeScript / JavaScript only
+    <em>One extractor, done well, using <code>ts-morph</code>. Stated up front in the UI and README. A half-working multi-language extractor is worth less than one honest one.</em></span></li>
+  <li><span class="k">Code depth</span><span class="v">File and top-level symbol
+    <em>No expression-level analysis, no per-line tracking, no full type resolution. Blast radius and cycles need nothing deeper, and depth multiplies node count for zero product value.</em></span></li>
+  <li><span class="k">History depth</span><span class="v">Last 500 commits or 12 months
+    <em>Recency decay means older commits contribute almost nothing anyway. Keeps the clone fast and the graph inside the free tier.</em></span></li>
+  <li><span class="k">AI writes no Cypher</span><span class="v">Tool calls over fixed parameterised queries
+    <em>The model picks which query and with what arguments. Every query is one we wrote and tested. This satisfies the assignment's "no string-concatenated Cypher" rule by construction, and it can't hallucinate a traversal that doesn't exist.</em></span></li>
+  <li><span class="k">Chat is not the UI</span><span class="v">Designed screens first, chat alongside
+    <em>Design effort is explicitly graded. A chat box over a graph is an API with a text field. The visual map is the product; chat is the escape hatch for questions the screens don't cover.</em></span></li>
+  <li><span class="k">Ingestion is a job</span><span class="v">Queue + worker, concurrency 1
+    <em>Never a request/response cycle. A jobs table and a polling worker is enough — the queue is not what's being graded, and the progress UI it enables is worth more than the queue itself.</em></span></li>
+</ul>
+
+<h2><span class="num">01</span>Why a graph database</h2>
+<p class="section-note">
+  This section is required in the README and is the thing most likely to be probed in the interview.
+  Drafting the argument now, before writing code, so the model serves the argument rather than the reverse.
+</p>
+
+<p>
+  The honest framing is not "SQL can't do this" — Postgres has recursive CTEs and at a hundred thousand
+  nodes it would likely be faster. The argument is about which queries stay <em>expressible</em>.
+</p>
+
+<div class="scroll">
+<table>
+  <thead>
+    <tr><th>Property</th><th>How this use case hits it</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Depth is chosen at query time</strong></td>
+      <td>"What does this function reach?" is 1 hop or 6, decided by a slider the user drags. In SQL each hop is another join, and you cannot write a query with an unknown number of joins — you write a recursive CTE and hand-manage the frontier, or you loop in application code.</td>
+    </tr>
+    <tr>
+      <td><strong>Path semantics, not just reachability</strong></td>
+      <td><code>shortestPath()</code> between two symbols answers "how does the HTTP handler actually reach the database write?" SQL can tell you <em>whether</em> B is reachable from A. Telling you <em>the route</em> means reimplementing BFS outside the database.</td>
+    </tr>
+    <tr>
+      <td><strong>Negative path constraints</strong></td>
+      <td>The single best query in the product: files that change together in commits but have <em>no import path between them at any depth</em>. That's <code>NOT (a)-[:IMPORTS*1..4]-(b)</code> — one clause. The relational equivalent is a recursive CTE inside a <code>NOT EXISTS</code>, per candidate pair.</td>
+    </tr>
+    <tr>
+      <td><strong>Heterogeneous, growing edge types</strong></td>
+      <td>Seven relationship types at launch across five node labels, and adding an eighth is a new label rather than a new table plus a migration plus new joins in every existing query.</td>
+    </tr>
+    <tr>
+      <td><strong>The graph is the interface</strong></td>
+      <td>The main screen renders the network itself. The user isn't reading a report derived from relationships — they're navigating them directly, and every click is another traversal.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout">
+  <p><strong>The one-liner for the README.</strong> A codebase is not rows — it is a call graph, an
+  import graph, a co-change graph and an ownership graph layered on the same nodes. Every question worth
+  asking is "what is connected to this, and how far does it go" — where <em>how far</em> is the user's
+  choice, not the schema's.</p>
+</div>
+
+<h2><span class="num">02</span>Data model</h2>
+<p class="section-note">
+  Six labels, seven relationship types. Everything is scoped by <code>repoId</code> — that is the
+  tenancy boundary, it is indexed, and every single query filters on it.
+</p>
+
+<figure>
+<svg viewBox="0 0 860 400" role="img" aria-label="Data model diagram: Entrypoint, File and Symbol in a code group; Commit and Author in a history group; relationships between them.">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+
+  <!-- groups -->
+  <rect class="diagram-group" x="20" y="20" width="450" height="360" rx="10"/>
+  <text class="diagram-group-label" x="36" y="42">Static — from the AST</text>
+
+  <rect class="diagram-group" x="500" y="20" width="340" height="360" rx="10"/>
+  <text class="diagram-group-label" x="516" y="42">Historical — from git log</text>
+
+  <!-- Entrypoint -->
+  <rect class="diagram-box" x="50" y="80" width="150" height="62" rx="7"/>
+  <text class="diagram-label" x="125" y="104" text-anchor="middle">Entrypoint</text>
+  <text class="diagram-prop" x="125" y="120" text-anchor="middle">kind · method · path</text>
+  <text class="diagram-prop" x="125" y="133" text-anchor="middle">"POST /api/checkout"</text>
+
+  <!-- File -->
+  <rect class="diagram-box" x="290" y="80" width="150" height="62" rx="7"/>
+  <text class="diagram-label" x="365" y="104" text-anchor="middle">File</text>
+  <text class="diagram-prop" x="365" y="120" text-anchor="middle">path · loc · isTest</text>
+  <text class="diagram-prop" x="365" y="133" text-anchor="middle">ext · dir</text>
+
+  <!-- Symbol -->
+  <rect class="diagram-box" x="290" y="270" width="150" height="62" rx="7"/>
+  <text class="diagram-label" x="365" y="294" text-anchor="middle">Symbol</text>
+  <text class="diagram-prop" x="365" y="310" text-anchor="middle">name · kind · line</text>
+  <text class="diagram-prop" x="365" y="323" text-anchor="middle">exported</text>
+
+  <!-- Commit -->
+  <rect class="diagram-box" x="590" y="80" width="150" height="62" rx="7"/>
+  <text class="diagram-label" x="665" y="104" text-anchor="middle">Commit</text>
+  <text class="diagram-prop" x="665" y="120" text-anchor="middle">sha · committedAt</text>
+  <text class="diagram-prop" x="665" y="133" text-anchor="middle">message · fileCount</text>
+
+  <!-- Author -->
+  <rect class="diagram-box" x="590" y="270" width="150" height="62" rx="7"/>
+  <text class="diagram-label" x="665" y="294" text-anchor="middle">Author</text>
+  <text class="diagram-prop" x="665" y="310" text-anchor="middle">name · email</text>
+  <text class="diagram-prop" x="665" y="323" text-anchor="middle">isBot</text>
+
+  <!-- Entrypoint -> Symbol : HANDLED_BY -->
+  <path class="diagram-edge" d="M 125 142 L 125 275 Q 125 301 155 301 L 285 301" marker-end="url(#arrow)" style="color: var(--accent)"/>
+  <text class="diagram-edge-label" x="134" y="264">HANDLED_BY</text>
+
+  <!-- File -> Symbol : DEFINES -->
+  <path class="diagram-edge" d="M 365 142 L 365 265" marker-end="url(#arrow)" style="color: var(--accent)"/>
+  <text class="diagram-edge-label" x="373" y="208">DEFINES</text>
+
+  <!-- File self loop IMPORTS -->
+  <path class="diagram-edge" d="M 400 80 Q 430 40 400 30 Q 365 22 340 40 Q 322 56 330 80" marker-end="url(#arrow)" style="color: var(--accent)"/>
+  <text class="diagram-edge-label" x="325" y="22">IMPORTS</text>
+
+  <!-- File self loop CO_CHANGES (derived) -->
+  <path class="diagram-edge derived" d="M 290 96 Q 232 92 226 140 Q 222 186 272 182 Q 296 179 296 147" marker-end="url(#arrow)" style="color: var(--accent)"/>
+  <text class="diagram-edge-label" x="222" y="212">CO_CHANGES</text>
+  <text class="diagram-prop" x="222" y="224">derived · count · strength</text>
+
+  <!-- Symbol self loop CALLS -->
+  <path class="diagram-edge" d="M 400 332 Q 430 372 400 382 Q 365 390 340 372 Q 322 356 330 332" marker-end="url(#arrow)" style="color: var(--accent)"/>
+  <text class="diagram-edge-label" x="335" y="399">CALLS</text>
+
+  <!-- Commit -> File : CHANGED -->
+  <path class="diagram-edge" d="M 585 111 L 445 111" marker-end="url(#arrow)" style="color: var(--accent)"/>
+  <text class="diagram-edge-label" x="478" y="103">CHANGED</text>
+  <text class="diagram-prop" x="478" y="127">added · deleted</text>
+
+  <!-- Author -> Commit : AUTHORED -->
+  <path class="diagram-edge" d="M 665 265 L 665 147" marker-end="url(#arrow)" style="color: var(--accent)"/>
+  <text class="diagram-edge-label" x="673" y="208">AUTHORED</text>
+</svg>
+<figcaption>Solid = extracted directly. Dashed = computed once at ingest from the commit data.</figcaption>
+</figure>
+
+<h3 class="sub">Nodes</h3>
+<div class="scroll">
+<table>
+  <thead>
+    <tr><th>Label</th><th>Key properties</th><th>Source</th></tr>
+  </thead>
+  <tbody>
+    <tr><td class="mono-cell">Repo</td><td><code>repoId, name, url, ingestedAt, commitSha, pinned, nodeCount</code></td><td>input</td></tr>
+    <tr><td class="mono-cell">File</td><td><code>repoId, path, dir, ext, loc, isTest, isGenerated</code></td><td>filesystem walk</td></tr>
+    <tr><td class="mono-cell">Symbol</td><td><code>repoId, id, name, kind (function|class|const|type), line, exported</code></td><td>ts-morph</td></tr>
+    <tr><td class="mono-cell">Entrypoint</td><td><code>repoId, kind (http|page|cli|job), method, path, raw</code></td><td>ts-morph — literal strings only</td></tr>
+    <tr><td class="mono-cell">Commit</td><td><code>repoId, sha, committedAt, message, fileCount, isMerge</code></td><td><code>git log</code></td></tr>
+    <tr><td class="mono-cell">Author</td><td><code>repoId, name, email, isBot, firstSeen, lastSeen</code></td><td><code>git log</code> + <code>.mailmap</code></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3 class="sub">Relationships</h3>
+<div class="scroll">
+<table>
+  <thead>
+    <tr><th>Type</th><th>Shape</th><th>Properties</th><th>Notes</th></tr>
+  </thead>
+  <tbody>
+    <tr><td class="mono-cell">IMPORTS</td><td>File → File</td><td><code>specifiers</code></td><td>Resolved relative + tsconfig paths. External packages dropped.</td></tr>
+    <tr><td class="mono-cell">DEFINES</td><td>File → Symbol</td><td>—</td><td>Top-level only.</td></tr>
+    <tr><td class="mono-cell">CALLS</td><td>Symbol → Symbol</td><td><code>count</code></td><td>Resolved via imports + local scope. <strong>Ambiguous calls are skipped, not guessed.</strong></td></tr>
+    <tr><td class="mono-cell">HANDLED_BY</td><td>Entrypoint → Symbol</td><td>—</td><td>The anchor that makes "the checkout flow" findable.</td></tr>
+    <tr><td class="mono-cell">CHANGED</td><td>Commit → File</td><td><code>added, deleted</code></td><td>From <code>git log --numstat</code>.</td></tr>
+    <tr><td class="mono-cell">AUTHORED</td><td>Author → Commit</td><td>—</td><td>Identities merged via <code>.mailmap</code>.</td></tr>
+    <tr><td class="mono-cell">CO_CHANGES</td><td>File ↔ File</td><td><code>count, strength</code></td><td>Derived at ingest. Stored, not computed live.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout warn">
+  <p><strong>Two modelling traps, both avoidable.</strong></p>
+  <p><strong>1. Co-change must be precomputed and filtered.</strong> Aggregating it at query time is
+  expensive, and computing it naively produces garbage: a merge commit or a formatting sweep touching
+  200 files creates 20,000 fake "coupling" pairs. Rule: <em>skip any commit touching more than 30 files</em>,
+  and only persist pairs that co-occurred 3+ times. That single filter is the difference between a
+  signal and a hairball.</p>
+  <p><strong>2. Bots will own the entire repository.</strong> <code>dependabot</code>,
+  <code>github-actions</code> and <code>renovate</code> commit constantly. Flag them at ingest
+  (<code>isBot</code>) and exclude by default, with a toggle to include.</p>
+</div>
+
+<h3 class="sub">The ownership calculation</h3>
+<p>
+  Not stored as a property — computed by query, so the decay window stays tunable. For each
+  <code>(Author, File)</code> pair:
+</p>
+<pre><code>contribution = Σ over commits ( lines_changed × 0.5 ^ (age_days / 180) )
+share        = contribution / total contribution for that file</code></pre>
+<p>
+  The six-month half-life is the whole point: somebody who wrote a file four years ago and left is not
+  its owner. Cap per-commit <code>lines_changed</code> at ~500 so one giant refactor cannot outweigh
+  fifty careful commits. <strong>Bus factor</strong> is the standard truck-factor definition — the
+  smallest number of authors whose combined share crosses 50%.
+</p>
+
+<h2><span class="num">03</span>Ingestion</h2>
+<p class="section-note">
+  Three doors into the same extractor. All three produce the identical <code>GraphPayload</code> JSON,
+  which is the only thing the loader ever sees.
+</p>
+
+<div class="item">
+  <div class="item-head">
+    <span class="id">3.1</span>
+    <h3>GitHub URL — the hosted path</h3>
+    <span class="chip core">Core</span>
+  </div>
+  <p class="what">Paste a URL in the web app. It becomes a queued job, never a request/response.
+  The UI streams phases: <code>queued → cloning → parsing → linking → history → writing → ready</code>.</p>
+  <p>That progress screen is not overhead. Loading states are explicitly graded, and watching a codebase
+  turn into a graph is the best forty seconds of the screen recording.</p>
+  <div class="fields">
+    <div class="field"><span class="k">Clone</span><span class="v"><code>git clone --filter=blob:none --depth 500</code> — partial clone skips historical blobs, so you fetch roughly the working tree plus 500 commits of metadata, which is all <code>--numstat</code> needs</span></div>
+    <div class="field"><span class="k">Precheck</span><span class="v"><code>GET /repos/{owner}/{repo}</code> returns <code>size</code> and <code>language</code> unauthenticated — reject before cloning, not after</span></div>
+    <div class="field"><span class="k">Host</span><span class="v">One always-on container (Render / Fly / Railway). <strong>Not</strong> serverless — no filesystem, no <code>git</code> binary, and it will time out</span></div>
+  </div>
+</div>
+
+<div class="item">
+  <div class="item-head">
+    <span class="id">3.2</span>
+    <h3>Local CLI — the private path</h3>
+    <span class="chip core">Core</span>
+  </div>
+  <p class="what"><code>npx cartograph ingest ./my-repo</code> — same extractor, points at a local
+  checkout, writes straight to your own CognoDB instance or emits JSON.</p>
+  <p>This is not a fallback, it's a positioning decision, and the README should say so: <em>your
+  proprietary code never leaves your machine.</em> It also happens to be the tool that generates the
+  committed seed data, so it costs nearly nothing to ship.</p>
+  <div class="fields">
+    <div class="field"><span class="k">Flags</span><span class="v"><code>--out seed.json</code> · <code>--commits 500</code> · <code>--repo-id</code> · <code>--dry-run</code></span></div>
+    <div class="field"><span class="k">Doubles as</span><span class="v">The seed script the assignment requires</span></div>
+  </div>
+</div>
+
+<div class="item">
+  <div class="item-head">
+    <span class="id">3.3</span>
+    <h3>Folder drop — the nice-to-have</h3>
+    <span class="chip opt">Stretch · cut first</span>
+  </div>
+  <p class="what">Drag a folder onto the page. Browser zips it client-side, POSTs to the worker,
+  same pipeline from there.</p>
+  <p>Honest caveat to surface in the UI: this uploads the code to the server, so it is the
+  <em>opposite</em> of the CLI's privacy story. Worth one sentence in the drop zone, not a footnote.
+  There is no git history in a dropped folder, so ownership and co-change views must degrade
+  gracefully rather than render empty — this is the state most likely to look broken if unhandled.</p>
+</div>
+
+<h3 class="sub">Guardrails — arbitrary repos are hostile input</h3>
+<div class="scroll">
+<table>
+  <thead>
+    <tr><th>Guard</th><th>Limit</th><th>Why</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Repo size</td><td>reject &gt; 50 MB</td><td>Free-tier disk and RAM</td></tr>
+    <tr><td>Language</td><td>TS / JS only</td><td>The extractor understands one language; say so before they wait</td></tr>
+    <tr><td>Source files</td><td>cap 1,500</td><td>ts-morph resolution time grows fast</td></tr>
+    <tr><td>Git history</td><td><code>--depth 500</code></td><td>Decay makes older commits near-worthless anyway</td></tr>
+    <tr><td>Job timeout</td><td>3 min hard kill</td><td>A hung job must not wedge a concurrency-1 queue</td></tr>
+    <tr><td>Already ingested</td><td>serve from cache</td><td>Protects the free tier, and looks instant</td></tr>
+    <tr><td>Node budget</td><td>evict oldest unpinned repo</td><td>1 GB disk is the ceiling; demo repos are <code>pinned</code></td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>
+  Every rejection is a designed state, not a stack trace: <em>"This repo is 180 MB — the demo handles
+  repos under 50 MB. Try one of these instead:"</em> with the preloaded examples right there. That is
+  the difference between an error state and a dead end, and it is exactly what is being graded.
+</p>
+
+<h2><span class="num">04</span>The query layer</h2>
+<p class="section-note">
+  Eight parameterised Cypher queries. This is the only place Cypher exists in the codebase. Each one
+  gets three front doors — a REST handler for the UI, a tool definition for chat, and an MCP tool —
+  from a single shared definition.
+</p>
+
+<pre><code>search(term, kinds?)              → files, symbols, entrypoints matching
+neighbors(nodeId, depth, dir)     → what this reaches / what reaches it
+path(fromId, toId)                → shortest route between two nodes
+who_touched(scope, halfLifeDays)  → ranked authors with weighted contribution
+bus_factor(scope)                 → single-point-of-failure modules
+co_changed(fileId, minCount)      → files that move together
+hidden_coupling(repoId)           → co-change with no structural link
+cycles(repoId)                    → import loops
+entrypoints(repoId)               → the app's public surface</code></pre>
+
+<h3 class="sub">The three that carry the argument</h3>
+
+<p><strong>Hidden coupling</strong> — the negative variable-length path. This is the headline query and
+the one to walk through in the interview.</p>
+<pre><code>MATCH (a:File {repoId: $repoId})-[cc:CO_CHANGES]-&gt;(b:File {repoId: $repoId})
+WHERE cc.count &gt;= $minCount
+  AND NOT (a)-[:IMPORTS*1..4]-(b)
+RETURN a.path, b.path, cc.count, cc.strength
+ORDER BY cc.strength DESC
+LIMIT $limit</code></pre>
+<p class="section-note" style="margin-top:.4rem">
+  "These two files always change together, but nothing in the code connects them" — an undocumented
+  contract, invisible to static analysis and invisible to your IDE.
+</p>
+
+<p><strong>Blast radius</strong> — depth chosen by the user, at query time.</p>
+<pre><code>MATCH (target:Symbol {repoId: $repoId, id: $id})
+MATCH p = (dependent:Symbol)-[:CALLS*1..5]-&gt;(target)
+WHERE length(p) &lt;= $depth
+WITH DISTINCT dependent, min(length(p)) AS hops
+MATCH (f:File)-[:DEFINES]-&gt;(dependent)
+RETURN dependent.name, f.path, f.isTest, hops
+ORDER BY hops, f.path</code></pre>
+
+<p><strong>Ownership</strong> — aggregation with time decay.</p>
+<pre><code>MATCH (a:Author {repoId: $repoId})-[:AUTHORED]-&gt;(c:Commit)-[ch:CHANGED]-&gt;(f:File)
+WHERE f.path STARTS WITH $scope
+  AND (a.isBot = false OR $includeBots)
+  AND c.fileCount &lt;= 30
+WITH a,
+     sum(
+       (CASE WHEN ch.added + ch.deleted &gt; 500 THEN 500 ELSE ch.added + ch.deleted END)
+       * 0.5 ^ ((($now - c.committedAt) / 86400.0) / $halfLifeDays)
+     ) AS weight,
+     count(DISTINCT f) AS files,
+     max(c.committedAt) AS lastTouch
+RETURN a.name, a.email, weight, files, lastTouch
+ORDER BY weight DESC</code></pre>
+
+<div class="callout warn">
+  <p><strong>Gotcha worth knowing before you hit it.</strong> Neo4j-family Cypher does <em>not</em>
+  accept a parameter in a variable-length bound — <code>[:CALLS*1..$depth]</code> is a syntax error.
+  The fix used above: write a fixed generous ceiling (<code>*1..5</code>) and filter with
+  <code>length(p) &lt;= $depth</code>. One query, still fully parameterised, no string concatenation.
+  Find this in phase 3 rather than halfway through phase 4.</p>
+</div>
+
+<h3 class="sub">Indexes — create these in the schema step, before any load</h3>
+<pre><code>CREATE INDEX file_repo_path   FOR (f:File)   ON (f.repoId, f.path);
+CREATE INDEX symbol_repo_id   FOR (s:Symbol) ON (s.repoId, s.id);
+CREATE INDEX symbol_repo_name FOR (s:Symbol) ON (s.repoId, s.name);
+CREATE INDEX commit_repo_sha  FOR (c:Commit) ON (c.repoId, c.sha);
+CREATE INDEX author_repo_mail FOR (a:Author) ON (a.repoId, a.email);</code></pre>
+<p>
+  Load with <code>UNWIND $batch AS row ... MERGE</code> in chunks of ~1,000. One round trip per
+  thousand nodes instead of per node — on a 256 MB instance the difference is minutes versus an hour.
+</p>
+
+<h2><span class="num">05</span>Surfaces</h2>
+<p class="section-note">
+  Three front doors onto the same eight queries. The map is the product, chat is the escape hatch,
+  MCP is the differentiator.
+</p>
+
+<div class="item">
+  <div class="item-head">
+    <span class="id">5.1</span>
+    <h3>The map — a big visual representation of the codebase</h3>
+    <span class="chip core">Core · the centrepiece</span>
+  </div>
+  <p class="what">The whole repository as a navigable network, filling the screen. Directories as
+  regions, files as nodes sized by lines of code, edges as aggregated imports. This is the screen
+  that makes someone say "oh" out loud, and it's what a hairball-free graph render buys you.</p>
+  <p><strong>The performance rule that makes it work:</strong> the map renders <em>file-level</em>
+  nodes and edges only — never the 30,000 symbol-level <code>CALLS</code> edges. Aggregate imports to
+  file→file with a weight, cap rendered edges to the top N by weight, and drop to symbol level only in
+  the focus view. Ignoring this is how you ship a grey blob.</p>
+  <div class="fields">
+    <div class="field"><span class="k">Colour by</span><span class="v">Owner · last-touched recency · bus factor · test coverage · directory. A single control that completely changes what the map is saying — cheap to build, reads as depth.</span></div>
+    <div class="field"><span class="k">Library</span><span class="v"><code>cytoscape.js</code> with the <code>fcose</code> layout — compound nodes give you directory grouping for free. <code>sigma.js</code> if node counts push past ~2,000 and you need WebGL.</span></div>
+    <div class="field"><span class="k">Interaction</span><span class="v">Click a file → side panel with owners (and the evidence), tests, co-change partners, recent commits. Every panel row is another query, not a preloaded blob.</span></div>
+    <div class="field"><span class="k">Empty state</span><span class="v">No repo loaded → the three preloaded examples as one-click cards. Nobody ever stares at a blank canvas.</span></div>
+  </div>
+</div>
+
+<div class="item">
+  <div class="item-head">
+    <span class="id">5.2</span>
+    <h3>Focus view — depth slider</h3>
+    <span class="chip core">Core</span>
+  </div>
+  <p class="what">Pick any node, drag depth 1→5, watch the affected set grow: symbols, files, tests,
+  and the people attached to them.</p>
+  <p>This is the screen that <em>demonstrates</em> the "why a graph database" argument rather than
+  asserting it. The reviewer watches an unbounded traversal respond to a slider. Put it in the
+  recording early.</p>
+</div>
+
+<div class="item">
+  <div class="item-head">
+    <span class="id">5.3</span>
+    <h3>People view</h3>
+    <span class="chip core">Core</span>
+  </div>
+  <p class="what">Who has touched what, with the arithmetic shown. Never a bare score — always
+  <em>"Priya Sharma — 58% of recent weighted changes across 19 files, last touched 3 weeks ago."</em></p>
+  <p>Transparency is what makes this usable by a non-engineer and what stops it reading as an AI guess.
+  When it's wrong, the user can see exactly why.</p>
+</div>
+
+<div class="item">
+  <div class="item-head">
+    <span class="id">5.4</span>
+    <h3>Chat panel</h3>
+    <span class="chip core">Core</span>
+  </div>
+  <p class="what">Sits alongside the map. The model gets the eight tools, composes them, and answers
+  with citations back to tool results. Clicking a citation highlights those nodes on the map.</p>
+  <p>Composition is the payoff we don't have to build: <em>"if Priya leaves, which entry points are at
+  risk?"</em> becomes <code>bus_factor</code> → <code>neighbors</code> → <code>entrypoints</code>,
+  chained by the model. We never wrote that path.</p>
+  <div class="fields">
+    <div class="field"><span class="k">Guardrails</span><span class="v">Cap the tool loop at 6 steps. Every claim in the final answer must cite a tool result — no citation, no claim.</span></div>
+    <div class="field"><span class="k">Model</span><span class="v">Claude via the Anthropic SDK's tool-use loop; the tool schemas are generated from the same definitions the REST layer uses</span></div>
+  </div>
+</div>
+
+<div class="item">
+  <div class="item-head">
+    <span class="id">5.5</span>
+    <h3>MCP server</h3>
+    <span class="chip opt">High value · cut second-to-last</span>
+  </div>
+  <p class="what">The same eight tools exposed over MCP. Point Claude Code at your codebase graph and
+  ask it anything, in the editor.</p>
+  <p>For an agentic-AI company this is the most on-brand thing in the submission, and it costs maybe
+  little because the tool definitions already exist. It also sidesteps text-to-Cypher entirely — the
+  model composes our tested queries instead of inventing its own.</p>
+</div>
+
+<h2><span class="num">06</span>Architecture</h2>
+<p class="section-note">
+  The layering is itself a graded artifact — "clear project structure and a codebase you would be
+  comfortable walking us through line by line."
+</p>
+
+<pre><code>cartograph/                            pnpm workspaces (not Turborepo/Bun)
+├─ packages/
+│  ├─ extract/     repo path → GraphPayload         (no DB, no network)
+│  ├─ graph/       GraphPayload → CognoDB; the queries
+│  ├─ tools/       one query def → REST + chat + MCP schemas (shared registry)
+│  └─ config/      env parsing, fail-fast validation
+├─ apps/
+│  ├─ cli/         ingest local path, emit JSON or write to DB (= BullMQ processor entry)
+│  ├─ api/         NestJS — REST, BullMQ producer + sandboxed worker, chat
+│  ├─ web/         React + Vite + Tailwind + shadcn — bubbles map, focus, people, chat
+│  └─ mcp/         stdio MCP server over packages/tools
+└─ seed/
+   ├─ hono.json          pinned demo repo (library)
+   ├─ drizzle-orm.json   pinned demo repo (ORM monorepo)
+   └─ webapp.json        pinned demo repo (real app: papermark/dub/…, has routes)</code></pre>
+
+<p>
+  The dependency direction is the point: <code>extract</code> knows nothing about the database,
+  <code>graph</code> knows nothing about HTTP, and <code>tools</code> is the single definition that
+  three transports render differently. That is one clean sentence in the README and one clean answer
+  in the interview.
+</p>
+
+<h3 class="sub">Connection handling</h3>
+<ul class="ok">
+  <li><strong>Env only.</strong> <code>COGNODB_URI</code>, <code>COGNODB_USER</code>, <code>COGNODB_PASSWORD</code>, <code>REDIS_URL</code>, <code>ANTHROPIC_API_KEY</code>. A committed <code>.env.example</code>, never a committed <code>.env</code>.</li>
+  <li><strong>Fail fast at boot.</strong> Validate env with zod on startup and exit with a readable message, rather than throwing on the first query.</li>
+  <li><strong>One driver instance</strong> for the process lifetime, sessions per request. Never a driver per request — 200 connections is the free-tier ceiling.</li>
+  <li><strong>Degrade, don't crash.</strong> DB unreachable → the UI shows a real "can't reach the database" state with a retry, not a white screen. This is an explicit requirement and takes twenty minutes.</li>
+  <li><strong>Retry transient failures</strong> once with backoff; surface anything else.</li>
+</ul>
+
+<h3 class="sub">Free-tier budget</h3>
+<p>
+  Target: a ~1,000-file TypeScript repo. Roughly 1k <code>File</code>, 8k <code>Symbol</code>,
+  30k <code>CALLS</code>, 500 <code>Commit</code>, 50 <code>Author</code>, 5k <code>CHANGED</code>,
+  ~2k <code>CO_CHANGES</code> after filtering. Call it 50–100k nodes and relationships per repo —
+  comfortably inside 0.5 vCPU / 256 MB / 1 GB, and squarely in the range the assignment describes.
+  Three pinned demo repos plus a rolling cache of user ingests, oldest evicted first.
+</p>
+
+<h2><span class="num">07</span>Phases</h2>
+<p class="section-note">
+  Six phases, strictly ordered — each one consumes the previous one's output. Phase 4 is the ship
+  line: once it closes, the project is complete and submittable, and phases 5 and 6 are additive.
+  Every phase has an exit test, so "done" is something you run, not something you feel.
+</p>
+
+<!-- PHASE 1 -->
+<div class="phase">
+  <div class="phase-head">
+    <span class="pnum">Phase 1</span>
+    <h3>Foundation</h3>
+    <span class="chip core">Blocking</span>
+  </div>
+  <p class="goal">Prove the database connection and the project skeleton before writing anything that
+  depends on them. A connectivity surprise found here is a nuisance; found in phase 4 it is the
+  submission.</p>
+
+  <ul class="tasks">
+    <li>Provision the CognoDB <strong>c0 instance</strong>. Save the password on first display — it is shown once. Write it to <code>.env</code>, commit only <code>.env.example</code>.</li>
+    <li><strong><code>packages/config</code></strong> — zod schema over <code>COGNODB_URI</code>, <code>COGNODB_USER</code>, <code>COGNODB_PASSWORD</code>, <code>ANTHROPIC_API_KEY</code>. Parsed at module load; a missing var exits with a readable message naming the variable.</li>
+    <li><strong><code>packages/graph/src/driver.ts</code></strong> — one <code>neo4j.driver()</code> for the process lifetime, sessions per request, <code>verifyConnectivity()</code> at boot. Never a driver per request.</li>
+    <li><strong>Pin the driver and log the negotiated Bolt version.</strong> The assignment specifies CognoDB speaks <strong>Bolt 5.0–5.4</strong>; a current <code>neo4j-driver</code> may try to negotiate above that. Pin the dependency exactly and print the negotiated version on first connect — an unpinned driver bump is a silent, confusing failure later.</li>
+    <li><strong><code>packages/graph/src/schema.ts</code></strong> — the five <code>CREATE INDEX ... IF NOT EXISTS</code> statements from §04, exposed as <code>pnpm db:init</code>.</li>
+    <li>Monorepo scaffold: <code>packages/{config,extract,graph,tools}</code>, <code>apps/{cli,api,web,mcp}</code>. <strong>pnpm workspaces</strong>, shared tsconfig. (Worker is not a separate app — it runs inside <code>apps/api</code> as a sandboxed BullMQ processor.)</li>
+    <li><strong>Dockerfile for ACA</strong> — base image must have <code>git</code> installed (<code>node:20-slim</code> / <code>alpine</code> omit it: <code>apt-get install -y git</code> or <code>apk add git</code>). Set the ACA container app to <code>min = max = 1</code> replica, no scale-to-zero. Provision the free Redis and set <code>REDIS_URL</code>.</li>
+  </ul>
+
+  <div class="exit">
+    <span class="k">Exit test</span>
+    <ul>
+      <li><code>pnpm db:init</code> succeeds, and succeeds again on a second run (idempotent).</li>
+      <li><code>pnpm db:ping</code> round-trips <code>RETURN 1</code> and prints the server version.</li>
+      <li>Corrupt the password in <code>.env</code> → a one-line readable error, not a driver stack trace.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- PHASE 2 -->
+<div class="phase">
+  <div class="phase-head">
+    <span class="pnum">Phase 2</span>
+    <h3>Extraction</h3>
+    <span class="chip core">Blocking</span>
+  </div>
+  <p class="goal">A local repository path in, a <code>GraphPayload</code> JSON out. No database, no
+  network, no HTTP anywhere in this package — that isolation is what makes it testable and what makes
+  the layering argument in the README true rather than aspirational.</p>
+
+  <ul class="tasks">
+    <li><strong><code>walk.ts</code></strong> — glob <code>**/*.{ts,tsx,js,jsx}</code>; exclude <code>node_modules</code>, <code>dist</code>, <code>build</code>, <code>coverage</code>, <code>*.d.ts</code>, <code>*.min.js</code>. Mark <code>isTest</code> from path convention, <code>isGenerated</code> from lockfiles and build output.</li>
+    <li><strong><code>project.ts</code></strong> — ts-morph <code>Project</code> with <code>skipAddingFilesFromTsConfig</code> and <code>skipFileDependencyResolution</code>, no lib files loaded. This is the difference between seconds and minutes.</li>
+    <li><strong><code>symbols.ts</code></strong> — top-level functions, classes, exported consts, arrow functions assigned to a top-level binding. Capture <code>name</code>, <code>kind</code>, <code>line</code>, <code>exported</code>. Stable id: <code>{path}#{name}</code>.</li>
+    <li><strong><code>imports.ts</code></strong> — resolve relative specifiers and tsconfig <code>paths</code> aliases to real files. Drop bare package specifiers; external deps are not in the model.</li>
+    <li><strong><code>calls.ts</code></strong> — every <code>CallExpression</code>, resolve the callee against the file's import map, then local scope. <strong>Ambiguous → skip the edge.</strong> Track a resolution rate and print it; it is the honest quality metric for the whole extractor.</li>
+    <li><strong><code>entrypoints.ts</code></strong> — Next.js <code>app/**/page.tsx</code> and <code>route.ts</code> from the path itself; Express/Hono/Elysia from <em>string literals</em> in <code>.get/.post/.put/.delete</code> calls. Literals only — no inference.</li>
+    <li><strong><code>git.ts</code></strong> — one <code>git log --numstat --no-merges</code> pass with a delimiter-safe <code>--pretty</code> format. Merge author identities via <code>.mailmap</code>, falling back to normalised email. Flag <code>dependabot</code>, <code>renovate</code>, <code>github-actions</code> as <code>isBot</code>.</li>
+    <li><strong><code>cochange.ts</code></strong> — <em>skip any commit touching &gt; 30 files</em>, then count file pairs, keep <code>count &gt;= 3</code>. Strength normalised so busy files don't dominate: <code>count / sqrt(freqA × freqB)</code>.</li>
+    <li><strong><code>payload.ts</code></strong> — the <code>GraphPayload</code> type and JSON writer. This type is the contract between phases 2 and 3.</li>
+  </ul>
+
+  <div class="exit">
+    <span class="k">Exit test</span>
+    <ul>
+      <li>Runs clean against three real repos of different shapes (a framework, an ORM, a library) — not a toy fixture.</li>
+      <li>Node and edge counts land inside the §06 budget; call-resolution rate reported and above ~70%.</li>
+      <li>Spot-check ten <code>CALLS</code> edges against the source by hand. Wrong edges are worse than missing ones.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- PHASE 3 -->
+<div class="phase">
+  <div class="phase-head">
+    <span class="pnum">Phase 3</span>
+    <h3>Graph layer</h3>
+    <span class="chip core">Blocking</span>
+  </div>
+  <p class="goal">Get the payload into CognoDB, and get the eight queries back out. At the end of this
+  phase there is real data in a real database and every question the product answers is answerable
+  from a terminal — before a single pixel exists.</p>
+
+  <ul class="tasks">
+    <li><strong><code>graph/src/load.ts</code></strong> — <code>UNWIND $batch AS row ... MERGE</code> in chunks of 1,000. Fixed order: Repo → File → Symbol → Entrypoint → Author → Commit, then all relationships. One round trip per thousand rows, never per row.</li>
+    <li><strong><code>graph/src/evict.ts</code></strong> — count nodes per repo; when over budget, <code>DETACH DELETE</code> the oldest <code>pinned = false</code> repo in batches.</li>
+    <li><strong><code>graph/src/queries/*.ts</code></strong> — one file per query. Each exports <code>{ name, description, params: ZodSchema, cypher: string, map(records) }</code>. The zod schema is the single source of truth for validation, REST typing, and the AI tool schema.</li>
+    <li>Write all eight: <code>search</code>, <code>neighbors</code>, <code>path</code>, <code>who_touched</code>, <code>bus_factor</code>, <code>co_changed</code>, <code>hidden_coupling</code>, <code>cycles</code>, <code>entrypoints</code>.</li>
+    <li><strong><code>packages/tools</code></strong> — convert each zod schema to a JSON Schema tool definition. Written once here, consumed by REST, chat and MCP.</li>
+    <li><strong><code>apps/cli</code></strong> — <code>ingest &lt;path&gt;</code> with <code>--out</code>, <code>--commits</code>, <code>--repo-id</code>, <code>--pin</code>, <code>--dry-run</code>. This is the seed script the assignment requires.</li>
+    <li>Ingest and pin three repos. Commit the payloads to <code>seed/</code> so a reviewer can load them without cloning anything.</li>
+    <li><code>POST /api/query/:name</code> — validate against the zod schema, run, map, return. A single handler serves all eight.</li>
+  </ul>
+
+  <div class="exit">
+    <span class="k">Exit test</span>
+    <ul>
+      <li>Three repos loaded and pinned; re-running the loader does not duplicate nodes.</li>
+      <li>All eight queries return sensible results against real data, verified by eye in the CognoDB console.</li>
+      <li><code>hidden_coupling</code> surfaces at least one pair you can confirm is genuinely coupled — if it returns noise, the phase-2 filters are wrong and this is where you find out.</li>
+      <li>A bad parameter returns a validated 400, not a 500.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- PHASE 4 -->
+<div class="phase shipline">
+  <div class="phase-head">
+    <span class="pnum">Phase 4</span>
+    <h3>Web application</h3>
+    <span class="chip core">Ship line</span>
+  </div>
+  <p class="goal">The product. Everything here is graded directly — this is where "design effort is
+  explicitly part of the evaluation" gets paid. <strong>When this phase closes, deploy and write the
+  README.</strong> From that moment the submission is complete and phases 5 and 6 are pure upside.</p>
+
+  <ul class="tasks">
+    <li><strong>Routes</strong> — <code>/</code> repo picker, <code>/r/[repoId]</code> map with side panel, <code>/r/[repoId]/people</code>.</li>
+    <li><strong>The map</strong> — cytoscape.js with the <code>fcose</code> layout. Directories as compound nodes, files sized by <code>loc</code>, edges are <em>aggregated file→file imports</em> capped to the top N by weight. Symbol-level edges never render here.</li>
+    <li><strong>Colour modes</strong> — owner · recency · bus factor · test coverage · directory. One control that changes what the map is saying; cheap to build, reads as depth.</li>
+    <li><strong>Focus view</strong> — select a node, depth slider 1→5, symbol-level neighbourhood. This is the screen that demonstrates the graph argument instead of asserting it.</li>
+    <li><strong>Side panel</strong> — owners with evidence, tests, co-change partners, recent commits. Each row is its own query, fetched on demand.</li>
+    <li><strong>People view</strong> — never a bare score. Always <em>"58% of recent weighted changes across 19 files, last touched 3 weeks ago."</em></li>
+    <li><strong>Search</strong> — ⌘K over files, symbols and entrypoints.</li>
+    <li><strong>States, built with each screen and not as a later pass</strong> — skeletons while querying, empty state offering the three demo repos, an explicit "can't reach the database" banner with retry, and a no-results state that suggests what to try.</li>
+  </ul>
+
+  <div class="exit">
+    <span class="k">Exit test</span>
+    <ul>
+      <li>Full click-through on all three seeded repos with an empty browser console.</li>
+      <li>Stop the database mid-session → degraded banner and a working retry, not a white screen.</li>
+      <li>Hand it to someone who has not seen the codebase and watch them find an owner without being told how.</li>
+      <li><strong>Deployed, README written, recording made.</strong> Do not carry this into phase 5.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- PHASE 5 -->
+<div class="phase">
+  <div class="phase-head">
+    <span class="pnum">Phase 5</span>
+    <h3>AI surfaces</h3>
+    <span class="chip opt">Additive</span>
+  </div>
+  <p class="goal">Rent the intelligence. The tool definitions already exist from phase 3, so both
+  surfaces are wiring rather than building.</p>
+
+  <ul class="tasks">
+    <li><strong>Chat</strong> — Anthropic tool-use loop over the nine tools, capped at 6 steps so a confused model can't spin.</li>
+    <li><strong>Citations</strong> — every tool result carries an id; the answer must reference one per claim. No citation, no claim.</li>
+    <li><strong>Wire citations to the map</strong> — clicking a citation chip highlights those nodes. This is the detail that makes chat feel part of the product rather than bolted beside it.</li>
+    <li><strong><code>apps/mcp</code></strong> — stdio MCP server exposing the identical tool definitions.</li>
+    <li>Screenshot Claude Code querying the graph through MCP. That image belongs near the top of the README.</li>
+  </ul>
+
+  <div class="exit">
+    <span class="k">Exit test</span>
+    <ul>
+      <li>Five prepared questions answered correctly with citations, including one that requires chaining two tools the model was never told to chain.</li>
+      <li>Claude Code connects over MCP and answers a question about a seeded repo.</li>
+      <li>Ask something the tools cannot answer → it says so, rather than inventing.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- PHASE 6 -->
+<div class="phase">
+  <div class="phase-head">
+    <span class="pnum">Phase 6</span>
+    <h3>Live ingestion</h3>
+    <span class="chip opt">Additive · highest risk</span>
+  </div>
+  <p class="goal">Turn three preloaded repos into any repo. Deliberately last: it is the riskiest work
+  and the only phase whose failure costs nothing, because the app already shipped in phase 4.</p>
+
+  <ul class="tasks">
+    <li><strong>Jobs table + worker</strong> — poll every 2s, concurrency 1. A queue library is optional; the queue is not what's being graded.</li>
+    <li><strong>Precheck before cloning</strong> — <code>GET /repos/{owner}/{repo}</code> for <code>size</code> and <code>language</code>, then the §03 guardrail table. Reject before the user waits, never after.</li>
+    <li><strong>Clone</strong> — <code>git clone --filter=blob:none --depth 500</code> into a temp dir, deleted in a <code>finally</code>.</li>
+    <li><strong>Phase streaming</strong> — the worker writes <code>queued → cloning → parsing → linking → history → writing → ready</code>; the UI polls or subscribes.</li>
+    <li><strong>Progress UI</strong> — real phase names and counts, not a spinner. This is forty seconds of the screen recording.</li>
+    <li><strong>Rejection states</strong> — "This repo is 180 MB; the demo handles repos under 50 MB" with the demo repos offered inline. A designed dead end is not a dead end.</li>
+    <li><strong>Eviction on write</strong> — enforce the node budget after each successful ingest.</li>
+    <li><strong>Folder drop</strong> — only if everything above is solid. Note in the drop zone that this uploads code, and degrade the ownership views gracefully since a dropped folder has no git history.</li>
+  </ul>
+
+  <div class="exit">
+    <span class="k">Exit test</span>
+    <ul>
+      <li>Paste a repo URL you have never ingested → a usable graph, end to end.</li>
+      <li>Paste something oversized, non-TypeScript, and nonexistent → three different, readable rejections.</li>
+      <li>Kill the worker mid-job → the job is retried or marked failed; it never sticks at "parsing" forever.</li>
+      <li>Fresh-clone the repo into a temp directory, follow your own README literally, confirm it runs.</li>
+    </ul>
+  </div>
+</div>
+
+<h2><span class="num">08</span>Cut lines, in order</h2>
+<p class="section-note">
+  Decided now, so the decision isn't made under pressure later. Phases 1–4 are the submission;
+  everything below comes off the back.
+</p>
+
+<p class="section-note" style="margin-top:-1rem">
+  <strong>Revised order</strong> (see the revision block at the top). Live ingestion and MCP came off this
+  list — ingestion is now core (the landing page leads with it) and MCP moved ahead of chat as the
+  on-brand, near-free surface. Chat is now the first AI surface to go.
+</p>
+<ol>
+  <li><strong>Folder drop</strong> (ingest polish) — the weakest input, and it contradicts the CLI's privacy story.</li>
+  <li><strong>Ingest polish</strong> — eviction, retry-on-worker-death, polished rejection copy. The happy-path ingest (4a) stays; only the trimmings go.</li>
+  <li><strong>Chat</strong> — cutting this makes it a pure exploration tool plus MCP, which is still a complete and coherent product.</li>
+  <li><strong>Dedicated cycles + hidden-coupling screens</strong> — the <em>queries</em> stay regardless; they are required and they are the strongest argument in the README. Only the screens go.</li>
+</ol>
+<p>
+  Never cut: the bubbles map, the depth slider, ownership with visible evidence, error states, minimal
+  live ingest, MCP, the README.
+</p>
+
+<h2><span class="num">09</span>Risks</h2>
+<div class="scroll">
+<table>
+  <thead>
+    <tr><th>Risk</th><th>Mitigation</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>ts-morph is slow or memory-hungry on an unfamiliar repo</td>
+      <td>Skip <code>node_modules</code> and lib files; resolve calls by imported symbol name rather than asking the type checker to fully resolve every expression. Document the heuristic in the README — naming a tradeoff reads as judgment, letting them find it reads as a bug.</td>
+    </tr>
+    <tr>
+      <td>Call resolution is wrong in edge cases</td>
+      <td>Skip ambiguous calls rather than guessing. A missing edge is invisible; a wrong edge is a false answer about who owns something.</td>
+    </tr>
+    <tr>
+      <td>The map renders as a grey hairball</td>
+      <td>File-level aggregation, top-N edge cap, directory compound nodes. Decide this at design time, not after seeing it.</td>
+    </tr>
+    <tr>
+      <td>Free tier chokes mid-demo</td>
+      <td>Pinned repos preloaded, eviction of unpinned, node budget enforced at ingest, size caps rejected before cloning.</td>
+    </tr>
+    <tr>
+      <td>Chat produces a confident wrong answer live on the recording</td>
+      <td>Citations mandatory; record the map-driven flows first and chat last, so the recording doesn't hinge on a model's mood.</td>
+    </tr>
+    <tr>
+      <td>Scope — the classic failure is a robust ingestion pipeline and no UI</td>
+      <td>The H28 gate. Seed first, app second, ingestion third.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h2><span class="num">10</span>Requirement traceability</h2>
+<p class="section-note">Straight from the assignment. Walk this list again before submitting.</p>
+
+<div class="scroll">
+<table>
+  <thead>
+    <tr><th>Required</th><th>Where it's satisfied</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Thoughtful graph model + diagram in README</td><td>§02 — 6 labels, 7 relationship types, SVG diagram</td></tr>
+    <tr><td>Realistic seed data via a script in the repo</td><td>§03.2 — the CLI <em>is</em> the seed script; 3 pinned real repos</td></tr>
+    <tr><td>Multi-hop traversal (2+ hops)</td><td>§04 — <code>neighbors</code> at depth 1–5, <code>path</code>, <code>hidden_coupling</code></td></tr>
+    <tr><td>A query SQL finds awkward</td><td>§04 — <code>NOT (a)-[:IMPORTS*1..4]-(b)</code>; also <code>shortestPath</code></td></tr>
+    <tr><td>Parameterised queries, no string concatenation</td><td>§04 — enforced structurally: the AI picks tools, never writes Cypher</td></tr>
+    <tr><td>Functional web app a non-technical person can use</td><td>§05 — map, focus, people; questions about people and risk, never syntax</td></tr>
+    <tr><td>Clean UI/UX, loading + empty states</td><td>§05, phase 4 — states built with each screen, not as a later pass</td></tr>
+    <tr><td>Credentials from env, never committed</td><td>§06 — <code>.env.example</code> only, zod validation at boot</td></tr>
+    <tr><td>Graceful handling when DB unreachable</td><td>§06 — explicit degraded state with retry</td></tr>
+    <tr><td>Originality of the use case ("Originality counts")</td><td>§00 — facts-only graph with rented interpretation; §05.5 MCP is the part nobody else will submit</td></tr>
+    <tr><td>Sensible layout and navigation</td><td>§05 — repo picker → map → focus → people, with the side panel as the constant. One spatial model, never a modal stack</td></tr>
+    <tr><td>Readable typography</td><td>§05 — one sans stack, one mono stack for code and identifiers; identifiers are always mono so paths never read as prose</td></tr>
+    <tr><td>Hosted demo (mandatory)</td><td>End of phase 4 — Vercel + Render, live CognoDB instance left running</td></tr>
+    <tr><td>Setup instructions incl. creating the CognoDB instance</td><td>§12 — the README walks provisioning, not just <code>bun install</code></td></tr>
+    <tr><td>Repo access if private</td><td>§12 — public repo by default; otherwise invite before emailing</td></tr>
+    <tr><td>Screen recording (mandatory)</td><td>End of phase 4, re-cut after 5 and 6 — 3 min: map → depth slider → people → chat</td></tr>
+    <tr><td>README with the queries explained</td><td>End of phase 4</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2><span class="num">11</span>Explicit non-goals</h2>
+<p class="section-note">Things a reviewer might ask about. Having a reason ready is better than having built them.</p>
+
+<ul class="no-list">
+  <li><strong>Multi-language support.</strong> One extractor done properly beats four done partially.</li>
+  <li><strong>Text-to-Cypher.</strong> A cliché, and it fails live. Tools over tested queries is strictly safer and strictly more capable.</li>
+  <li><strong>Persisted risk scores or LLM-named modules.</strong> The graph holds facts. Interpretation is the model's job and it changes as models improve.</li>
+  <li><strong>Real-time sync with GitHub.</strong> Ingestion is a snapshot. Webhooks are a product, not a take-home.</li>
+  <li><strong>Auth and multi-tenancy.</strong> <code>repoId</code> is the only boundary. Adding login would consume the effort that makes the map good.</li>
+  <li><strong>Incremental re-ingest.</strong> Re-ingesting is a full rebuild. Correct, simple, and fast enough at this size.</li>
+</ul>
+
+<h2><span class="num">12</span>Submission mechanics</h2>
+<p class="section-note">
+  Straight from §6 and §8 of the assignment. Mechanical, easy to get wrong while tired, and each item
+  is a cheap way to lose marks that have nothing to do with the code.
+</p>
+
+<ul class="ok">
+  <li><strong>Repository.</strong> Public by default. If private, invite the reviewers <em>before</em> sending the email, not after they ask.</li>
+  <li><strong>README must contain</strong> the use case, a "Why a graph database?" section, the data model diagram, setup and run instructions, the main queries explained, and screenshots of the UI.</li>
+  <li><strong>Setup instructions include creating the CognoDB instance</strong> — explicitly called out in the assignment. Walk signup → free c0 → region → connection URI → password, not just <code>bun install</code>. Assume the reader has never used CognoDB.</li>
+  <li><strong>Hosted demo link is mandatory</strong>, not optional. So is a short screen recording.</li>
+  <li><strong>Email <code>hr@wexa.ai</code></strong> with the exact subject line: <em>CognoDB Assignment 2 – &lt;Your Name&gt;</em>. Include the repo URL and the demo link.</li>
+  <li><strong>Leave the instance running</strong> until you hear back — they may test the app against live data.</li>
+  <li><strong>Dry run before sending.</strong> Fresh-clone into a temp directory, follow your own README literally, confirm it runs with no knowledge you already have in your head.</li>
+</ul>
+
+<h2><span class="num">13</span>What the assignment does <em>not</em> say</h2>
+<p class="section-note">
+  Everything below is our judgment, not a requirement — invented defaults and elective scope. These
+  are exactly the places a follow-up interview will push, so each one needs a reason rather than a
+  shrug. Listed here so the sourced and the chosen never blur together.
+</p>
+
+<div class="scroll">
+<table>
+  <thead>
+    <tr><th>Choice</th><th>Status</th><th>The defence</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Chat, MCP, any AI in the product</td>
+      <td class="no">Entirely elective</td>
+      <td>The assignment mentions AI <em>once</em>, as "AI-assisted coding tools" — meaning tools used to write the submission, not features inside it. Nothing asks for an AI product surface. Justify it as the reason the graph can stay facts-only, and be ready to say the app is complete without it.</td>
+    </tr>
+    <tr>
+      <td>Six-month ownership half-life</td>
+      <td class="no">Invented</td>
+      <td>Chosen so a year-old contribution is worth ~25% of a fresh one. No source; it is a tunable, which is why it is a query parameter rather than a stored property. Be ready to defend it as <em>a</em> defensible default, not <em>the</em> right number.</td>
+    </tr>
+    <tr>
+      <td>Skip commits touching &gt; 30 files</td>
+      <td class="no">Invented</td>
+      <td>Merges and formatting sweeps manufacture false coupling. 30 is a judgment call. Sanity-check it against the seeded repos and adjust with evidence rather than defending the number itself.</td>
+    </tr>
+    <tr>
+      <td>Co-change threshold of 3, 500-line commit cap</td>
+      <td class="no">Invented</td>
+      <td>Noise floors. Same defence: tuned against real repos, shown in the README, not pretended to be principled.</td>
+    </tr>
+    <tr>
+      <td>TypeScript only</td>
+      <td class="no">Our constraint</td>
+      <td>Nothing in the assignment restricts language. This is a scope decision: one honest extractor over four partial ones.</td>
+    </tr>
+    <tr>
+      <td>500-commit history depth</td>
+      <td class="no">Invented</td>
+      <td>Interacts with the decay: at a six-month half-life, commits beyond ~500 contribute close to nothing on an active repo. Weak on a slow-moving repo — acknowledge that rather than defend it.</td>
+    </tr>
+    <tr>
+      <td>Node budget of 50–100k per repo</td>
+      <td class="yes">Sourced</td>
+      <td>The assignment says "a few thousand to a few hundred thousand nodes and relationships is enough." We sit deliberately inside that band.</td>
+    </tr>
+    <tr>
+      <td>Engineering-manager persona</td>
+      <td class="no">Interpretation</td>
+      <td>The assignment says "a non-technical person could use it." We read that as legible without a terminal and without reading source — not as a zero-domain-knowledge user. This is the single most likely thing to be challenged; §05 is the answer, and it must hold up on the recording.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout warn">
+  <p><strong>The question to have an answer for.</strong> "You built an AI chat and an MCP server —
+  the assignment asked for a graph database application. Why?" The honest answer is that the graph
+  stores only facts, and something has to interpret them; renting that from a model is what let the
+  data model stay clean instead of accumulating scores and labels. If that answer doesn't land, the
+  app still stands on its own without either surface — which is exactly why they are phases 5 and 6.</p>
+</div>
+
+<footer>
+  Cartograph · build plan · 2026-08-15 · for the Wexa AI / CognoDB take-home.
+  Working title; the model, the queries and the cut order are the parts that matter.
+</footer>
+
+</div>
+</body>
+</html>
