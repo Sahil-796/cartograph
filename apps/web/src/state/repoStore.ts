@@ -8,6 +8,9 @@
  *     decide what to fetch/show, and READS/WRITES `panelOpen` / `panelTab`;
  *   - the ⌘K PALETTE (`features/search/CommandPalette`) WRITES
  *     `selectedNodeId` (and may open the panel) when a result is chosen.
+ *   - the CHAT PANEL (`features/chat/ChatPanel`) WRITES `highlightedNodes`
+ *     when a citation chip is clicked; the MAP reads it to ring the matching
+ *     nodes without disturbing the existing selection/focus state.
  *
  * Feature agents CONSUME this store but never edit this file — the shape below
  * is the frozen contract. Each field is documented so a feature can be built
@@ -35,6 +38,18 @@ export type PanelTab =
   | "coupling" // co-change / hidden coupling
   | "history"; // who_touched / recent commits
 
+/** The kind of graph entity a chat citation points at. Mirrors
+ * `features/chat/types.ts#CitationNode` — kept structurally compatible
+ * rather than imported, so this frozen store never depends on a feature. */
+export type HighlightedNodeKind = "file" | "author" | "symbol";
+
+/** One node referenced by a clicked citation chip. `ref` is a file path,
+ * author name, or `"path#name"` symbol ref — whatever the map can look up. */
+export interface HighlightedNode {
+  kind: HighlightedNodeKind;
+  ref: string;
+}
+
 export interface RepoState {
   /**
    * The currently selected graph node id, or `null` when nothing is selected.
@@ -55,6 +70,13 @@ export interface RepoState {
 
   /** The side panel's active tab. */
   panelTab: PanelTab;
+
+  /**
+   * Nodes to ring on the map, set by clicking a chat citation chip. Empty
+   * when nothing is highlighted. Independent of `selectedNodeId` — clicking a
+   * chip highlights without stealing the current selection/focus.
+   */
+  highlightedNodes: HighlightedNode[];
 
   // ---- setters ----
 
@@ -77,19 +99,26 @@ export interface RepoState {
   /** Switch the panel's active tab. */
   setPanelTab: (tab: PanelTab) => void;
 
+  /** Set the nodes a clicked citation chip points at (replaces any prior set). */
+  highlightNodes: (nodes: HighlightedNode[]) => void;
+
+  /** Clear the citation highlight. */
+  clearHighlight: () => void;
+
   /** Reset all view state to defaults — call on repo change. */
   reset: () => void;
 }
 
 const INITIAL: Pick<
   RepoState,
-  "selectedNodeId" | "colourMode" | "depth" | "panelOpen" | "panelTab"
+  "selectedNodeId" | "colourMode" | "depth" | "panelOpen" | "panelTab" | "highlightedNodes"
 > = {
   selectedNodeId: null,
   colourMode: "owner",
   depth: 2,
   panelOpen: false,
   panelTab: "overview",
+  highlightedNodes: [],
 };
 
 const clampDepth = (d: number): number =>
@@ -112,6 +141,10 @@ export const useRepoStore = create<RepoState>((set) => ({
   setPanelOpen: (open) => set({ panelOpen: open }),
 
   setPanelTab: (tab) => set({ panelTab: tab }),
+
+  highlightNodes: (nodes) => set({ highlightedNodes: nodes }),
+
+  clearHighlight: () => set({ highlightedNodes: [] }),
 
   reset: () => set({ ...INITIAL }),
 }));
