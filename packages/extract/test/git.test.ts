@@ -93,8 +93,11 @@ describe("extractHistory", () => {
     for (const c of commits) {
       expect(c.repoId).toBe(REPO_ID);
       expect(c.sha).toMatch(/^[0-9a-f]{40}$/);
-      // Strict ISO-8601 with an explicit offset (%aI), no embedded newline.
-      expect(c.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/);
+      // Strict ISO-8601 (%aI), no embedded newline. git renders a zero
+      // (UTC) offset as the `Z` designator rather than `+00:00`, so accept
+      // both forms — otherwise this passes in a local non-UTC timezone but
+      // fails in UTC CI runners.
+      expect(c.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}([+-]\d{2}:\d{2}|Z)$/);
       expect(c.message).not.toContain("\n");
     }
   });
