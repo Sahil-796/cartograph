@@ -66,23 +66,51 @@ export default function MapView({ repoId }: MapViewProps) {
   const setDepth = useRepoStore((s) => s.setDepth);
   const setSelectedNodeId = useRepoStore((s) => s.setSelectedNodeId);
 
+  // `metricsPending` / `metricsFailed` are also exposed by the hook for a
+  // colour-status indicator — left to the UI layer.
   const { loading, connError, otherError, graphRows, metricRows, retry } = useGraphData(repoId);
 
-  // Build cytoscape elements + lookup maps once per data load.
+  // Build the STRUCTURE (nodes/edges/layout input) from `file_graph` alone, so
+  // the map draws without waiting on the expensive `file_metrics` query. Metrics
+  // are joined into `fileData` in place once they land (below) — keeping this
+  // memo keyed only on `graphRows` means metrics never trigger a relayout.
   const built = useMemo(() => {
-    if (!graphRows || !metricRows) return null;
+    if (!graphRows) return null;
     const nodeCount = graphRows.filter((r) => r.kind === "node").length;
-    return buildGraph(graphRows, metricRows, {
+    return buildGraph(graphRows, [], {
       hideGenerated: HIDE_GENERATED,
       maxEdges: edgeCapFor(nodeCount),
     });
-  }, [graphRows, metricRows]);
+  }, [graphRows]);
+
+  // Join colour metrics into the already-built file data in place, then bump a
+  // version so colour context + recolour re-run — no rebuild, no relayout.
+  const [metricsVersion, setMetricsVersion] = useState(0);
+  const [presentOwners, setPresentOwners] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!built || !metricRows) return;
+    for (const m of metricRows) {
+      const f = built.fileData.get(m.path);
+      if (!f) continue;
+      f.ownerName = m.ownerName;
+      f.lastCommitAt = m.lastCommitAt;
+      f.busFactor = m.busFactor;
+      f.coveredByTest = m.coveredByTest;
+    }
+    const owners = new Set<string>();
+    built.fileData.forEach((f) => {
+      if (f.ownerName) owners.add(f.ownerName);
+    });
+    setPresentOwners([...owners].sort());
+    setMetricsVersion((v) => v + 1);
+  }, [built, metricRows]);
 
   const colourCtx = useMemo<ColourContext>(
     () => ({
       recency: computeRecencyDomain(built ? [...built.fileData.values()] : []),
     }),
-    [built],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [built, metricsVersion],
   );
 
   // ---- init cytoscape + run fcose (once per built graph) ----
@@ -283,7 +311,10 @@ export default function MapView({ repoId }: MapViewProps) {
             onDepthChange={setDepth}
             focused={anchor != null}
           />
-          <Legend mode={colourMode} present={built.present} />
+          <Legend
+            mode={colourMode}
+            present={{ owners: presentOwners ?? built.present.owners, dirs: built.present.dirs }}
+          />
         </>
       ) : null}
     </div>
