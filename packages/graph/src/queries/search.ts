@@ -12,10 +12,14 @@ const paramsSchema = z.object({
   repoId: z.string(),
   term: z.string().min(1),
   // Normalised to `null` (never `undefined`) because the neo4j driver
-  // rejects `undefined` values inside a parameters object.
+  // rejects `undefined` values inside a parameters object. `.nullish()`
+  // (not `.optional()`) so the schema is IDEMPOTENT: the params are parsed
+  // twice (controller `safeParse`, then `executeQuery.parse`), and the first
+  // pass already turns `undefined` into `null` — the second pass must accept
+  // that `null` rather than reject it as "expected array, received null".
   kinds: z
     .array(z.enum(["file", "symbol", "entrypoint"]))
-    .optional()
+    .nullish()
     .transform((v) => v ?? null),
 });
 
