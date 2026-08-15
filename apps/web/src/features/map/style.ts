@@ -165,5 +165,19 @@ export function mapStylesheet(): StylesheetStyle[] {
       selector: "edge.dim",
       style: { opacity: 0.03 },
     },
+    // ---- chat citation highlight (features/chat, via repoStore) ----
+    {
+      selector: "node.cg-highlight",
+      style: {
+        "border-width": 3,
+        "border-color": AMBER,
+        "underlay-color": AMBER,
+        "underlay-opacity": 0.35,
+        "underlay-padding": 6,
+        "underlay-shape": "ellipse",
+        opacity: 1,
+        "z-index": 90,
+      },
+    },
   ];
 }

@@ -31,6 +31,7 @@ import {
 import { Controls, NavToolbar } from "./Controls";
 import { Legend } from "./Legend";
 import { MapSkeleton } from "./MapSkeleton";
+import { applyHighlight } from "./highlight";
 import "./map.css";
 
 // Register the fcose layout exactly once, tolerating HMR / StrictMode re-runs.
@@ -78,6 +79,7 @@ export default function MapView({ repoId }: MapViewProps) {
   const colourMode = useRepoStore((s) => s.colourMode);
   const depth = useRepoStore((s) => s.depth);
   const selectedNodeId = useRepoStore((s) => s.selectedNodeId);
+  const highlightedNodes = useRepoStore((s) => s.highlightedNodes);
   const setColourMode = useRepoStore((s) => s.setColourMode);
   const setDepth = useRepoStore((s) => s.setDepth);
   const setSelectedNodeId = useRepoStore((s) => s.setSelectedNodeId);
@@ -278,6 +280,13 @@ export default function MapView({ repoId }: MapViewProps) {
       });
     });
   }, [colourMode, built, colourCtx, ready]);
+
+  // ---- ring nodes referenced by a clicked chat citation chip ----
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy || !ready) return;
+    applyHighlight(cy, highlightedNodes);
+  }, [highlightedNodes, ready]);
 
   // ---- decide the focus ANCHOR from the current selection ----
   const [anchor, setAnchor] = useState<string | null>(null);
