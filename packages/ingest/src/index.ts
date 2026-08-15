@@ -1,0 +1,28 @@
+/**
+ * `@cartograph/ingest` — the pure ingestion engine.
+ *
+ * Turns a public GitHub repo URL into a loaded graph in CognoDB, guarded
+ * by the guardrail table (size / language / file-count / already-ingested
+ * / node-budget) and reporting progress at every phase. No HTTP, no queue,
+ * no BullMQ — a separate API unit imports this surface and drives it.
+ *
+ * repoId slug scheme: `owner-repo`, lowercased, with every run of
+ * non-alphanumeric characters collapsed to a single `-`. e.g.
+ * `honojs/hono` → `honojs-hono`. It never collides with the bare-name seed
+ * ids (`hono`, `drizzle-orm`, `papermark`) because it always carries the
+ * owner. (More entrypoints are re-exported here as later commits add them.)
+ */
+
+// The frozen contract types.
+export type {
+  IngestPhase,
+  IngestCounts,
+  IngestProgress,
+  PrecheckResult,
+  IngestResult,
+} from "./types.js";
+export type { RejectionReason } from "./errors.js";
+export { IngestRejected } from "./errors.js";
+
+// DB read helpers (cache check).
+export { repoExists, nodeCountFor } from "./db.js";
