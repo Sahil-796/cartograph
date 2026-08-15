@@ -331,6 +331,11 @@
   <p><strong>MCP moves early.</strong> Built right after the query layer (phase 3), not bundled with chat.
   It is the most on-brand surface for Wexa (structured context for coding agents) and is nearly free once
   <code>packages/tools</code> exists. <strong>Chat stays later and is the first AI surface cut.</strong></p>
+  <p><strong>Chat model.</strong> The chat tool-use loop runs on <strong>Groq</strong> with an open
+  <code>gpt-oss</code> model (OpenAI-compatible API) — cheap and fast, and plenty for composing fixed,
+  tested queries. The env var is <code>GROQ_API_KEY</code>, not <code>ANTHROPIC_API_KEY</code>. MCP needs
+  no model key of ours: it only exposes the tools, and the <em>user's own agent</em> (Claude Code, Cursor,
+  etc.) supplies the reasoning.</p>
   <p><strong>Seed repos.</strong> Swap <code>zod</code> (a library with no routes and only ~40 huge files)
   for a real TypeScript web app — papermark / dub / formbricks / inbox-zero, whichever lands nearest
   600–900 files under the size caps. Keep <code>hono</code> and <code>drizzle-orm</code>. This gives
@@ -790,7 +795,7 @@ CREATE INDEX author_repo_mail FOR (a:Author) ON (a.repoId, a.email);</code></pre
   chained by the model. We never wrote that path.</p>
   <div class="fields">
     <div class="field"><span class="k">Guardrails</span><span class="v">Cap the tool loop at 6 steps. Every claim in the final answer must cite a tool result — no citation, no claim.</span></div>
-    <div class="field"><span class="k">Model</span><span class="v">Claude via the Anthropic SDK's tool-use loop; the tool schemas are generated from the same definitions the REST layer uses</span></div>
+    <div class="field"><span class="k">Model</span><span class="v">Groq's tool-use loop with an open <code>gpt-oss</code> model (OpenAI-compatible API) — cheap and fast; the tool schemas are generated from the same definitions the REST layer uses</span></div>
   </div>
 </div>
 
@@ -838,7 +843,7 @@ CREATE INDEX author_repo_mail FOR (a:Author) ON (a.repoId, a.email);</code></pre
 
 <h3 class="sub">Connection handling</h3>
 <ul class="ok">
-  <li><strong>Env only.</strong> <code>COGNODB_URI</code>, <code>COGNODB_USER</code>, <code>COGNODB_PASSWORD</code>, <code>REDIS_URL</code>, <code>ANTHROPIC_API_KEY</code>. A committed <code>.env.example</code>, never a committed <code>.env</code>.</li>
+  <li><strong>Env only.</strong> <code>COGNODB_URI</code>, <code>COGNODB_USER</code>, <code>COGNODB_PASSWORD</code>, <code>REDIS_URL</code>, <code>GROQ_API_KEY</code>. A committed <code>.env.example</code>, never a committed <code>.env</code>.</li>
   <li><strong>Fail fast at boot.</strong> Validate env with zod on startup and exit with a readable message, rather than throwing on the first query.</li>
   <li><strong>One driver instance</strong> for the process lifetime, sessions per request. Never a driver per request — 200 connections is the free-tier ceiling.</li>
   <li><strong>Degrade, don't crash.</strong> DB unreachable → the UI shows a real "can't reach the database" state with a retry, not a white screen. This is an explicit requirement and takes twenty minutes.</li>
@@ -874,7 +879,7 @@ CREATE INDEX author_repo_mail FOR (a:Author) ON (a.repoId, a.email);</code></pre
 
   <ul class="tasks">
     <li>Provision the CognoDB <strong>c0 instance</strong>. Save the password on first display — it is shown once. Write it to <code>.env</code>, commit only <code>.env.example</code>.</li>
-    <li><strong><code>packages/config</code></strong> — zod schema over <code>COGNODB_URI</code>, <code>COGNODB_USER</code>, <code>COGNODB_PASSWORD</code>, <code>ANTHROPIC_API_KEY</code>. Parsed at module load; a missing var exits with a readable message naming the variable.</li>
+    <li><strong><code>packages/config</code></strong> — zod schema over <code>COGNODB_URI</code>, <code>COGNODB_USER</code>, <code>COGNODB_PASSWORD</code>, <code>REDIS_URL</code>, <code>GROQ_API_KEY</code>. Parsed at module load; a missing var exits with a readable message naming the variable.</li>
     <li><strong><code>packages/graph/src/driver.ts</code></strong> — one <code>neo4j.driver()</code> for the process lifetime, sessions per request, <code>verifyConnectivity()</code> at boot. Never a driver per request.</li>
     <li><strong>Pin the driver and log the negotiated Bolt version.</strong> The assignment specifies CognoDB speaks <strong>Bolt 5.0–5.4</strong>; a current <code>neo4j-driver</code> may try to negotiate above that. Pin the dependency exactly and print the negotiated version on first connect — an unpinned driver bump is a silent, confusing failure later.</li>
     <li><strong><code>packages/graph/src/schema.ts</code></strong> — the five <code>CREATE INDEX ... IF NOT EXISTS</code> statements from §04, exposed as <code>pnpm db:init</code>.</li>
@@ -1002,7 +1007,7 @@ CREATE INDEX author_repo_mail FOR (a:Author) ON (a.repoId, a.email);</code></pre
   surfaces are wiring rather than building.</p>
 
   <ul class="tasks">
-    <li><strong>Chat</strong> — Anthropic tool-use loop over the nine tools, capped at 6 steps so a confused model can't spin.</li>
+    <li><strong>Chat</strong> — Groq (<code>gpt-oss</code>) tool-use loop over the nine tools, capped at 6 steps so a confused model can't spin.</li>
     <li><strong>Citations</strong> — every tool result carries an id; the answer must reference one per claim. No citation, no claim.</li>
     <li><strong>Wire citations to the map</strong> — clicking a citation chip highlights those nodes. This is the detail that makes chat feel part of the product rather than bolted beside it.</li>
     <li><strong><code>apps/mcp</code></strong> — stdio MCP server exposing the identical tool definitions.</li>
