@@ -9,6 +9,7 @@
     "start:dev": "nest start --watch",
     "build": "nest build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "pretest": "nest build",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
