@@ -8,6 +8,7 @@
   "scripts": {
     "db:init": "tsx src/scripts/db-init.ts",
     "db:ping": "tsx src/scripts/db-ping.ts",
+    "db:seed": "tsx src/scripts/db-seed.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests"
   },
