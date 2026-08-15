@@ -11,6 +11,7 @@ import { entrypoints } from "./entrypoints.js";
 import { fileGraph } from "./fileGraph.js";
 import { fileMetrics } from "./fileMetrics.js";
 import { fileCommits } from "./fileCommits.js";
+import { testsForFile } from "./testsForFile.js";
 
 export { search } from "./search.js";
 export type { SearchParams, SearchRow } from "./search.js";
@@ -36,6 +37,8 @@ export { fileMetrics } from "./fileMetrics.js";
 export type { FileMetricsParams, FileMetricsRow } from "./fileMetrics.js";
 export { fileCommits } from "./fileCommits.js";
 export type { FileCommitsParams, FileCommitsRow } from "./fileCommits.js";
+export { testsForFile } from "./testsForFile.js";
+export type { TestsForFileParams, TestsForFileRow } from "./testsForFile.js";
 
 /**
  * The registry: every query the product exposes, indexed by name. This
@@ -56,6 +59,7 @@ export const queries: QueryDef[] = [
   fileGraph,
   fileMetrics,
   fileCommits,
+  testsForFile,
 ];
 
 /** Looks up a query definition by its `name`. Returns `undefined` if unknown. */
