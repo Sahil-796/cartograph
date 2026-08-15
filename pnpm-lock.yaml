@@ -32,6 +32,9 @@ importers:
       '@cartograph/graph':
         specifier: workspace:*
         version: link:../../packages/graph
+      '@cartograph/tools':
+        specifier: workspace:*
+        version: link:../../packages/tools
       '@nestjs/cli':
         specifier: ^10.4.9
         version: 10.4.9
