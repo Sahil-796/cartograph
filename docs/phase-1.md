@@ -1,8 +1,10 @@
 # Phase 1 — Foundation
 
-> **Status:** In progress · Wave 1 (foundation + config) ✅ reviewed & accepted, Wave 2 (graph + api) running.
-> **Branch:** `phase-1-foundation` · **Baseline commit:** `6ca8cde`
-> Last updated as work lands — sections marked _pending_ are not yet verified.
+> **Status:** ✅ Scaffolding complete & reviewed — all three units accepted. The only
+> remaining item is the live connectivity exit test, which is gated on provisioning the
+> CognoDB instance (a manual, credentialed step done with the user).
+> **Branch:** `phase-1-foundation` · **Baseline commit:** `6ca8cde` · **Remote:** private repo `Sahil-796/cartograph`
+> Sections reflect verified work; anything still gated is marked ⏳.
 
 ## Goal
 
@@ -100,7 +102,36 @@ proves the config→driver→env wiring end to end; only the live round-trip wai
 
 Commits: `e1dc0b4` (driver + schema), `52b22d3` (scripts + exports), `7ba47c0` (README).
 
-### `apps/api` skeleton + Dockerfile — ⏳ Wave 2b (running)
+### `apps/api` skeleton + Dockerfile — ✅ Wave 2b
+
+A bootable **NestJS** skeleton (`@cartograph/api`) plus the deployment Dockerfile.
+
+- `src/main.ts` boots on `PORT ?? 3001`; `src/health/` exposes **`GET /health`** →
+  `{ status: "ok", uptime, timestamp }` with HTTP 200. No DB call — the skeleton is
+  deliberately independent of `@cartograph/config`/`@cartograph/graph` for Phase 1 (that
+  wiring + the BullMQ worker come later), which also sidesteps ESM/CJS interop for now.
+- `apps/api/tsconfig.json` is **standalone CommonJS** (`experimentalDecorators`,
+  `emitDecoratorMetadata`) rather than extending the ESM base — NestJS tooling is CJS-native.
+  The ESM/CJS interop caveat for later wiring is documented in `apps/api/README.md`.
+- **`Dockerfile` (repo root)** — multi-stage (Node 20 build + slim runtime), pnpm via
+  corepack. The runtime stage **explicitly installs `git`** (`node:20-slim` omits it; the
+  future ingestion worker shells out to `git clone`/`git log`) — with a comment saying why.
+  `.dockerignore` at repo root.
+
+**Verified:** typecheck clean; app booted and `curl localhost:3001/health` returned
+`200 {"status":"ok","uptime":...,"timestamp":...}`. `docker build` was **not** run (no Docker
+daemon in this environment, and the image needs the finalized lockfile) — the Dockerfile was
+structurally reviewed only. _This is the one piece not yet executed end to end._
+
+Commits: `6ea3d27` (skeleton), `5cf1de7` (health + README), `3b0fc71` (Dockerfile + dockerignore).
+
+### Finalize (orchestrator)
+
+After the three units, the orchestrator: regenerated `pnpm-lock.yaml` into one coherent
+install, added root `pnpm db:init` / `pnpm db:ping` passthroughs (so the exit test runs from
+the repo root), and applied two small graph polish fixes (render `RETURN 1` as a plain
+number, not a neo4j `Integer`; `--passWithNoTests` on graph's empty test script). All 8
+workspaces typecheck; config tests 4/4. Commit: `331870a`.
 
 ## Deviations from the plan (plan vs actual)
 
@@ -118,20 +149,28 @@ from `plan.html`. Recorded so a reviewer sees the reasoning, not a contradiction
 
 ## How to run it
 
-_Filled in once the scaffold is verified. Expected shape:_
-
 ```bash
-pnpm install
-pnpm db:init   # creates the 5 indexes; idempotent
-pnpm db:ping   # round-trips RETURN 1, prints server + negotiated Bolt version
+pnpm install                      # installs all 8 workspaces
+
+# --- needs a provisioned CognoDB instance + .env (see below) ---
+pnpm db:init                      # creates the 5 indexes; idempotent
+pnpm db:ping                      # round-trips RETURN 1, prints server agent + negotiated Bolt version
+
+# --- no database required ---
+pnpm --filter @cartograph/config test    # 4/4
+pnpm -r run typecheck                     # all clean
+pnpm --filter @cartograph/api start       # boots on :3001; GET /health -> 200
 ```
+
+`.env` (copy from `.env.example`) must define `COGNODB_URI`, `COGNODB_USER`,
+`COGNODB_PASSWORD`, `REDIS_URL`, `ANTHROPIC_API_KEY`. It is gitignored and never committed.
 
 ## Exit test (from the plan)
 
 | Check | Status |
 |-------|--------|
-| `db:init` succeeds, and again on a second run (idempotent) | ⏳ gated on live CognoDB instance |
-| `db:ping` round-trips `RETURN 1` and prints the server version | ⏳ gated on live CognoDB instance |
+| `db:init` succeeds, and again on a second run (idempotent) | ⏳ gated on live CognoDB instance — script written & typechecked; `IF NOT EXISTS` makes it idempotent by construction |
+| `db:ping` round-trips `RETURN 1` and prints the server version | ⏳ gated on live CognoDB instance — script written; env-load + connection-attempt paths verified against a bogus instance |
 | Corrupt/absent env → readable error naming the var, not a stack trace | ✅ verified (config + graph `db:ping` no-`.env` run) |
 
 > **Blocker (expected, not a failure):** the CognoDB c0 instance is provisioned manually in
