@@ -119,9 +119,22 @@ A bootable **NestJS** skeleton (`@cartograph/api`) plus the deployment Dockerfil
   `.dockerignore` at repo root.
 
 **Verified:** typecheck clean; app booted and `curl localhost:3001/health` returned
-`200 {"status":"ok","uptime":...,"timestamp":...}`. `docker build` was **not** run (no Docker
-daemon in this environment, and the image needs the finalized lockfile) — the Dockerfile was
-structurally reviewed only. _This is the one piece not yet executed end to end._
+`200 {"status":"ok","uptime":...,"timestamp":...}`. `docker build` isn't run locally (no
+daemon, and Docker isn't part of the local loop) — instead **CI builds the image** to prove
+the Dockerfile is valid; see below.
+
+### CI (`.github/workflows/ci.yml`)
+
+Docker is a *deploy* artifact, not a local-dev dependency, so image building lives in CI:
+
+- **verify** job — `pnpm install --frozen-lockfile`, `pnpm run typecheck`, `pnpm run test`
+  on every push/PR.
+- **docker** job — `docker build` of the root Dockerfile (`push: false`). This validates the
+  image (including the `git` install) in a real daemon, which the local environment can't do.
+  Registry push + deploy to Azure Container Apps is deferred to Phase 4.
+
+Local development never touches Docker — `pnpm install` + `pnpm --filter @cartograph/api start`
+is the whole loop.
 
 Commits: `6ea3d27` (skeleton), `5cf1de7` (health + README), `3b0fc71` (Dockerfile + dockerignore).
 
