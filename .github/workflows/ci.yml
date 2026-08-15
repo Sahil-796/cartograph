@@ -25,7 +25,18 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck
+      # `@cartograph/config` validates env at import and exits if it's
+      # missing, so any test that transitively imports it (graph, tools,
+      # api) needs these present. They're placeholders, not secrets — CI
+      # has no CognoDB, so tests that actually need a reachable DB (the one
+      # live case in the api e2e) skip themselves when the connection fails.
       - run: pnpm run test
+        env:
+          COGNODB_URI: bolt://localhost:7687
+          COGNODB_USER: neo4j
+          COGNODB_PASSWORD: ci-placeholder
+          REDIS_URL: redis://localhost:6379
+          GROQ_API_KEY: ci-placeholder
 
   docker:
     name: build api image
