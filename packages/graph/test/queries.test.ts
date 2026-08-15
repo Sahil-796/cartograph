@@ -13,8 +13,8 @@ import { getDriver } from "../src/driver.js";
 import { getQuery, queries } from "../src/queries/index.js";
 
 describe("query registry — structural", () => {
-  it("has exactly 11 queries", () => {
-    expect(queries).toHaveLength(11);
+  it("has exactly 12 queries", () => {
+    expect(queries).toHaveLength(12);
   });
 
   it("every name is unique and snake_case", () => {
@@ -40,6 +40,7 @@ describe("query registry — structural", () => {
         "who_touched",
         "file_graph",
         "file_metrics",
+        "file_commits",
       ].sort(),
     );
   });
@@ -101,6 +102,7 @@ describe("query registry — live DB syntax check", () => {
     toId: "nope#b",
     scope: "src/",
     fileId: "does/not/exist.ts",
+    path: "does/not/exist.ts",
   };
 
   it("every query's cypher parses and runs against the live DB with benign params", async () => {
