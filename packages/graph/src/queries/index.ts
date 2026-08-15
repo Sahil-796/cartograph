@@ -9,6 +9,7 @@ import { hiddenCoupling } from "./hiddenCoupling.js";
 import { cycles } from "./cycles.js";
 import { entrypoints } from "./entrypoints.js";
 import { fileGraph } from "./fileGraph.js";
+import { fileMetrics } from "./fileMetrics.js";
 
 export { search } from "./search.js";
 export type { SearchParams, SearchRow } from "./search.js";
@@ -30,6 +31,8 @@ export { entrypoints } from "./entrypoints.js";
 export type { EntrypointsParams, EntrypointsRow } from "./entrypoints.js";
 export { fileGraph } from "./fileGraph.js";
 export type { FileGraphParams, FileGraphRow } from "./fileGraph.js";
+export { fileMetrics } from "./fileMetrics.js";
+export type { FileMetricsParams, FileMetricsRow } from "./fileMetrics.js";
 
 /**
  * The registry: every query the product exposes, indexed by name. This
@@ -48,6 +51,7 @@ export const queries: QueryDef[] = [
   cycles,
   entrypoints,
   fileGraph,
+  fileMetrics,
 ];
 
 /** Looks up a query definition by its `name`. Returns `undefined` if unknown. */

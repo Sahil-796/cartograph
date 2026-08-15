@@ -13,8 +13,8 @@ import { getDriver } from "../src/driver.js";
 import { getQuery, queries } from "../src/queries/index.js";
 
 describe("query registry — structural", () => {
-  it("has exactly 10 queries", () => {
-    expect(queries).toHaveLength(10);
+  it("has exactly 11 queries", () => {
+    expect(queries).toHaveLength(11);
   });
 
   it("every name is unique and snake_case", () => {
@@ -39,6 +39,7 @@ describe("query registry — structural", () => {
         "search",
         "who_touched",
         "file_graph",
+        "file_metrics",
       ].sort(),
     );
   });
