@@ -32,6 +32,7 @@ export { parseGitHubUrl, deriveRepoId } from "./slug.js";
 export type { ParsedGitHubUrl } from "./slug.js";
 export { SIZE_LIMIT_KB, SUPPORTED_LANGUAGES } from "./precheck.js";
 export type { PrecheckDeps } from "./precheck.js";
+export { makeCloneDir, cloneRepo, removeDir, CLONE_DEPTH } from "./clone.js";
 
 // DB read helpers (cache check).
 export { repoExists, nodeCountFor } from "./db.js";
