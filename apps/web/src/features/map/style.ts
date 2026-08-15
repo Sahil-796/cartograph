@@ -11,34 +11,10 @@ import type { StylesheetStyle } from "cytoscape";
 export const AMBER = "#f0a825";
 const AMBER_SOFT = "rgba(240, 168, 37, 0.55)";
 const EDGE = "rgba(150, 150, 165, 0.22)";
-const DIR_BORDER = "rgba(150, 150, 165, 0.16)";
-const DIR_LABEL = "rgba(220, 220, 228, 0.34)";
 const FILE_LABEL = "rgba(232, 232, 238, 0.9)";
 
 export function mapStylesheet(): StylesheetStyle[] {
   return [
-    // ---- directory compounds ----
-    {
-      selector: 'node[type="dir"]',
-      style: {
-        "background-opacity": 0.04,
-        "background-color": "#ffffff",
-        "border-width": 1,
-        "border-color": DIR_BORDER,
-        "border-style": "dashed",
-        shape: "round-rectangle",
-        "corner-radius": "10",
-        label: "data(label)",
-        "font-size": 11,
-        color: DIR_LABEL,
-        "text-valign": "top",
-        "text-halign": "center",
-        "text-margin-y": -2,
-        "min-zoomed-font-size": 9,
-        padding: "14px",
-        "text-transform": "none",
-      },
-    },
     // ---- file nodes ----
     {
       selector: 'node[type="file"]',
@@ -73,17 +49,17 @@ export function mapStylesheet(): StylesheetStyle[] {
         width: "data(size)",
         height: "data(size)",
         "background-color": "data(fill)",
-        "border-width": 1,
+        "border-width": 1.5,
         "border-color": AMBER,
         shape: "ellipse",
         label: "data(label)",
-        "font-size": 9,
+        "font-size": 10,
         color: FILE_LABEL,
         "text-valign": "center",
         "text-halign": "right",
-        "text-margin-x": 3,
+        "text-margin-x": 4,
         "text-outline-width": 2,
-        "text-outline-color": "#141414",
+        "text-outline-color": "#121215",
         "min-zoomed-font-size": 8,
         "z-index": 30,
       },
@@ -92,10 +68,10 @@ export function mapStylesheet(): StylesheetStyle[] {
     {
       selector: "edge",
       style: {
-        width: "mapData(weight, 1, 6, 0.6, 2.4)",
+        width: "mapData(weight, 1, 6, 0.6, 2.2)",
         "line-color": EDGE,
         "curve-style": "straight",
-        opacity: 0.9,
+        opacity: 0.35,
         "transition-property": "opacity, line-color, width",
         "transition-duration": 180,
       },
@@ -105,10 +81,10 @@ export function mapStylesheet(): StylesheetStyle[] {
       style: {
         "line-color": AMBER_SOFT,
         "line-style": "dashed",
-        width: 1.2,
+        width: 1.5,
         "target-arrow-color": AMBER_SOFT,
         "target-arrow-shape": "triangle",
-        "arrow-scale": 0.7,
+        "arrow-scale": 0.75,
         "curve-style": "bezier",
         "z-index": 25,
       },
@@ -116,42 +92,78 @@ export function mapStylesheet(): StylesheetStyle[] {
     // ---- interaction / focus states ----
     {
       selector: "node.hover",
-      style: { "border-width": 2, "border-color": AMBER },
-    },
-    {
-      selector: 'node[type="file"].selected',
       style: {
-        "border-width": 3,
-        "border-color": AMBER,
+        "border-width": 2,
+        "border-color": "#ffffff",
         label: "data(label)",
-        "z-index": 40,
+        "font-size": 10,
+        color: "#ffffff",
+        "text-outline-width": 2,
+        "text-outline-color": "#101014",
+        "z-index": 45,
       },
     },
     {
-      selector: 'node[type="file"].neighbour',
+      selector: "edge.hover",
       style: {
-        "border-width": 2,
-        "border-color": AMBER_SOFT,
-        label: "data(label)",
+        "line-color": "rgba(255, 255, 255, 0.6)",
+        opacity: 0.85,
+        width: 1.8,
         "z-index": 20,
       },
     },
     {
+      selector: "node.selected",
+      style: {
+        "border-width": 2.5,
+        "border-color": "#ffffff",
+        "outline-width": 2,
+        "outline-color": "rgba(255, 255, 255, 0.25)",
+        "outline-opacity": 1,
+        label: "data(label)",
+        "font-size": 11,
+        "font-weight": "bold",
+        color: "#ffffff",
+        "text-valign": "bottom",
+        "text-margin-y": 4,
+        "text-outline-width": 2.5,
+        "text-outline-color": "#0d0d10",
+        "min-zoomed-font-size": 0, // Always visible on canvas
+        "z-index": 100,
+      },
+    },
+    {
+      selector: "node.neighbour",
+      style: {
+        "border-width": 1.5,
+        "border-color": "rgba(255, 255, 255, 0.55)",
+        label: "data(label)",
+        "font-size": 9.5,
+        color: "rgba(235, 235, 240, 0.9)",
+        "text-valign": "bottom",
+        "text-margin-y": 3,
+        "text-outline-width": 2,
+        "text-outline-color": "#101014",
+        "z-index": 30,
+      },
+    },
+    {
       selector: "edge.neighbour",
-      style: { "line-color": AMBER_SOFT, opacity: 1, width: 1.6, "z-index": 15 },
+      style: {
+        "line-color": "rgba(255, 255, 255, 0.55)",
+        opacity: 0.85,
+        width: 1.8,
+        "z-index": 25,
+      },
     },
     // dimming everything outside the focus set
     {
       selector: "node.dim",
-      style: { opacity: 0.1 },
+      style: { opacity: 0.15 },
     },
     {
       selector: "edge.dim",
       style: { opacity: 0.03 },
-    },
-    {
-      selector: 'node[type="dir"].dim',
-      style: { opacity: 0.25 },
     },
   ];
 }

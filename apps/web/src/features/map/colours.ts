@@ -25,18 +25,20 @@ import type { FileNodeDatum } from "./types";
 export const UNKNOWN = "#5b5b66";
 
 /**
- * Okabe–Ito qualitative palette (minus plain black, which vanishes on the
- * near-black canvas). Reference colourblind-safe categorical set.
+ * Vibrant, high-contrast qualitative palette optimized for dark backgrounds.
+ * Fully distinguishable, vivid, and harmonious with amber accents.
  */
 const OKABE_ITO = [
-  "#E69F00", // orange
-  "#56B4E9", // sky blue
-  "#009E73", // bluish green
-  "#F0E442", // yellow
-  "#0072B2", // blue
-  "#D55E00", // vermillion
-  "#CC79A7", // reddish purple
-  "#94D2BD", // soft teal (extra, keeps large repos distinct)
+  "#38bdf8", // vibrant sky blue / cyan
+  "#f97316", // vibrant warm orange
+  "#10b981", // vibrant emerald green
+  "#facc15", // bright gold yellow
+  "#818cf8", // periwinkle blue
+  "#ec4899", // bright rose / pink
+  "#14b8a6", // luminous teal
+  "#a855f7", // vivid purple
+  "#fb7185", // coral salmon
+  "#22c55e", // bright leaf green
 ];
 
 /** Deterministic string hash → palette index (stable across renders). */
@@ -54,10 +56,14 @@ export function categoricalColour(key: string | null | undefined): string {
   return OKABE_ITO[hashIndex(key, OKABE_ITO.length)];
 }
 
-/** The top-level directory bucket for a path ("src/a/b.ts" → "src"). */
+/** The top-level directory bucket for a path ("src/a/b.ts" → "src", "packages/ui/..." → "packages/ui"). */
 export function topLevelDir(path: string): string {
-  const i = path.indexOf("/");
-  return i === -1 ? "·root" : path.slice(0, i);
+  const parts = path.split("/");
+  if (parts.length <= 1) return "·root";
+  if (parts.length >= 3 && (parts[0] === "packages" || parts[0] === "apps")) {
+    return `${parts[0]}/${parts[1]}`;
+  }
+  return parts[0];
 }
 
 // ---- sequential ramp helpers (sRGB interpolation between stops) ----
@@ -119,7 +125,8 @@ export function colourFor(
 ): string {
   switch (mode) {
     case "owner":
-      return categoricalColour(f.ownerName);
+      // If author is known, colour by author; otherwise gracefully fallback to directory module colour
+      return f.ownerName ? categoricalColour(f.ownerName) : categoricalColour(topLevelDir(f.path));
     case "directory":
       return categoricalColour(topLevelDir(f.path));
     case "recency": {
@@ -169,12 +176,20 @@ export function legendFor(
 ): LegendSpec {
   switch (mode) {
     case "owner": {
+      if (present.owners.length === 0) {
+        const keys = present.dirs.slice(0, 7);
+        const swatches: LegendSwatch[] = keys.map((k) => ({
+          colour: categoricalColour(k),
+          label: k,
+        }));
+        return { title: "Directory module (no git authors)", swatches };
+      }
       const keys = present.owners.slice(0, 7);
       const swatches: LegendSwatch[] = keys.map((k) => ({
         colour: categoricalColour(k),
         label: k,
       }));
-      if (present.owners.length > keys.length || present.owners.length === 0) {
+      if (present.owners.length > keys.length) {
         swatches.push({ colour: UNKNOWN, label: "unattributed / other" });
       }
       return { title: "Dominant author", swatches };

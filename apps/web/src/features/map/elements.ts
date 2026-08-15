@@ -30,27 +30,10 @@ export interface BuiltGraph {
   fileCount: number;
 }
 
-/** loc → node diameter (px), gently compressed so huge files don't dominate. */
+/** loc → node diameter (px), gently compressed so nodes stay well-proportioned. */
 function locToSize(loc: number): number {
   const v = Math.max(0, loc);
-  return Math.round(14 + Math.sqrt(v) * 1.6); // ~14px (tiny) … ~90px (3000 loc)
-}
-
-function dirChain(path: string): string[] {
-  const parts = path.split("/");
-  parts.pop(); // drop filename
-  const chain: string[] = [];
-  let acc = "";
-  for (const p of parts) {
-    acc = acc ? `${acc}/${p}` : p;
-    chain.push(acc);
-  }
-  return chain;
-}
-
-function dirLabel(dirPath: string): string {
-  const i = dirPath.lastIndexOf("/");
-  return i === -1 ? dirPath : dirPath.slice(i + 1);
+  return Math.min(48, Math.max(14, Math.round(14 + Math.sqrt(v) * 1.05)));
 }
 
 import { topLevelDir } from "./colours";
@@ -103,38 +86,20 @@ export function buildGraph(
     link(e.toPath, e.fromPath);
   }
 
-  // 4. Emit compound dir nodes for the ancestor chains of visible files only.
-  const dirs = new Set<string>();
-  for (const path of connected) {
-    for (const d of dirChain(path)) dirs.add(d);
-  }
-
-  const elements: ElementDefinition[] = [];
-  for (const d of dirs) {
-    const parentChain = dirChain(d);
-    const parent = parentChain.length >= 2 ? parentChain[parentChain.length - 2] : undefined;
-    elements.push({
-      data: { id: `dir:${d}`, type: "dir", label: dirLabel(d), parent: parent ? `dir:${parent}` : undefined },
-      selectable: false,
-      grabbable: false,
-    });
-  }
-
-  // 5. File nodes.
+  // 4. File nodes (pure graph, no rectangular container boxes).
   const owners = new Set<string>();
   const topDirs = new Set<string>();
+  const elements: ElementDefinition[] = [];
+
   for (const path of connected) {
     const f = fileData.get(path)!;
     if (f.ownerName) owners.add(f.ownerName);
     topDirs.add(topLevelDir(path));
-    const chain = dirChain(path);
-    const parent = chain.length ? `dir:${chain[chain.length - 1]}` : undefined;
     elements.push({
       data: {
         id: path,
         type: "file",
         label: path.slice(path.lastIndexOf("/") + 1),
-        parent,
         size: locToSize(f.loc),
         fill: "#5b5b66", // recoloured immediately after mount
         isTest: f.isTest,
@@ -142,7 +107,7 @@ export function buildGraph(
     });
   }
 
-  // 6. Edges.
+  // 5. Edges.
   for (const e of edges) {
     elements.push({
       data: {
