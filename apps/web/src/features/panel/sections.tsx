@@ -40,6 +40,8 @@ export function OwnersSection({ repoId, path }: SectionProps) {
   const state = useAsyncData<WhoTouchedRow[]>(
     (signal) => whoTouched(repoId, path, {}, signal),
     [repoId, path],
+    true,
+    `owners:${repoId}:${path}`,
   );
 
   return (
@@ -96,6 +98,8 @@ export function TestsSection({ repoId, path }: SectionProps) {
   const state = useAsyncData(
     (signal) => testsForFile(repoId, path, signal),
     [repoId, path],
+    true,
+    `tests:${repoId}:${path}`,
   );
 
   return (
@@ -144,6 +148,8 @@ export function CoChangeSection({ repoId, path }: SectionProps) {
   const state = useAsyncData<CoChangedRow[]>(
     (signal) => coChanged(repoId, path, 3, signal),
     [repoId, path],
+    true,
+    `cochange:${repoId}:${path}`,
   );
 
   return (
@@ -191,6 +197,8 @@ export function BusFactorSection({ repoId, path }: SectionProps) {
   const state = useAsyncData<BusFactorRow[]>(
     (signal) => busFactor(repoId, path, {}, signal),
     [repoId, path],
+    true,
+    `busfactor:${repoId}:${path}`,
   );
 
   return (
@@ -264,6 +272,8 @@ export function HistorySection({ repoId, path }: SectionProps) {
   const state = useAsyncData(
     (signal) => fileCommits(repoId, path, 20, signal),
     [repoId, path],
+    true,
+    `history:${repoId}:${path}`,
   );
 
   return (

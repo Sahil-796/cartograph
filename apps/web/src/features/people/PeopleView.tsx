@@ -30,10 +30,14 @@ export default function PeopleView({ repoId }: PeopleViewProps) {
   const people = useAsyncData<WhoTouchedRow[]>(
     (signal) => whoTouched(repoId, "", {}, signal),
     [repoId],
+    true,
+    `people:${repoId}`,
   );
   const bus = useAsyncData<BusFactorRow[]>(
     (signal) => busFactor(repoId, "", {}, signal),
     [repoId],
+    true,
+    `repobus:${repoId}`,
   );
 
   return (
