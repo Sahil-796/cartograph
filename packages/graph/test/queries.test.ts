@@ -13,8 +13,8 @@ import { getDriver } from "../src/driver.js";
 import { getQuery, queries } from "../src/queries/index.js";
 
 describe("query registry — structural", () => {
-  it("has exactly 9 queries", () => {
-    expect(queries).toHaveLength(9);
+  it("has exactly 10 queries", () => {
+    expect(queries).toHaveLength(10);
   });
 
   it("every name is unique and snake_case", () => {
@@ -25,7 +25,7 @@ describe("query registry — structural", () => {
     }
   });
 
-  it("expects the exact query set from the plan", () => {
+  it("expects the exact query set from the plan (Phase 3 nine + Phase 4 web queries)", () => {
     const names = queries.map((q) => q.name).sort();
     expect(names).toEqual(
       [
@@ -38,6 +38,7 @@ describe("query registry — structural", () => {
         "path",
         "search",
         "who_touched",
+        "file_graph",
       ].sort(),
     );
   });
