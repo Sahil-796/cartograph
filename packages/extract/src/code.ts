@@ -98,7 +98,19 @@ export function extractCode(
   for (const { file, sourceFile } of paired) {
     const local = perFile.get(file.relPath)!;
 
+    // Imports are extracted for every file, tests included: "which test
+    // files import this module" is a fact worth keeping (it's how the
+    // product shows a file's tests).
     imports.push(...extractImports(sourceFile, repoId, file.relPath, resolve));
+
+    // The call graph and entrypoints model the *application's* structure,
+    // so test files are excluded from them (and therefore from the
+    // resolution metric). This is driven purely by the convention-based
+    // `isTest` flag, so it holds for any repo — test code, whose calls sit
+    // inside `it(() => ...)` callbacks with no top-level owner, no longer
+    // drags the honest metric down. Test files remain File nodes with their
+    // imports; only their internal call graph is omitted.
+    if (file.isTest) continue;
 
     const importMap = buildImportMap(sourceFile, file.relPath, resolve);
     const callRes = extractCalls(

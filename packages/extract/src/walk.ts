@@ -68,19 +68,29 @@ export function walkRepo(rootDir: string): WalkedFile[] {
 }
 
 /**
- * Test-path convention: a `__tests__` directory segment anywhere in the
- * path, a `*.test.*` / `*.spec.*` filename, or the file living directly
- * under a top-level `test`/`tests` directory (`test/foo.ts`,
- * `tests/foo.ts` — not merely containing a directory named `test`
- * somewhere deeper, which would over-match e.g. `src/testutils/x.ts`).
+ * Directory names that, as an *exact* path segment at any depth, mean the
+ * file is test code. Exact-segment matching (not substring) is deliberate:
+ * it catches `packages/foo/test/bar.ts` in a monorepo without over-matching
+ * `src/testutils/x.ts` or `src/spectrum/y.ts`. Kept to the unambiguous,
+ * cross-framework conventions (Jest/Vitest/Mocha/Nest) so classification is
+ * repo-agnostic — no per-repo configuration.
+ */
+const TEST_DIR_SEGMENTS = new Set(["__tests__", "__test__", "test", "tests", "e2e"]);
+
+/**
+ * Test-path convention, convention-based so it holds for any TS/JS repo:
+ *  - a `*.test.*` / `*.spec.*` / `*.e2e-spec.*` filename (Jest, Vitest,
+ *    Mocha, Jasmine, Nest all share these), or
+ *  - a test directory ({@link TEST_DIR_SEGMENTS}) as an exact segment at
+ *    any depth — so both `test/foo.ts` and `packages/api/test/foo.ts` count.
  */
 function isTestPath(relPath: string): boolean {
   const segments = relPath.split(posix.sep);
   const filename = segments[segments.length - 1] ?? "";
 
-  if (segments.includes("__tests__")) return true;
-  if (/\.(test|spec)\.[^./]+$/.test(filename)) return true;
-  if (segments.length >= 2 && (segments[0] === "test" || segments[0] === "tests")) return true;
+  if (/\.(test|spec|e2e-spec)\.[^./]+$/.test(filename)) return true;
+  // Any segment except the filename itself.
+  if (segments.slice(0, -1).some((seg) => TEST_DIR_SEGMENTS.has(seg))) return true;
 
   return false;
 }
