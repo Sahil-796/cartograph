@@ -8,4 +8,4 @@ Node · pnpm · React/Vite · NestJS · CognoDB Bolt
 
 ## Status
 
-Phase 1 — foundation
+Phase 2 — extraction (`packages/extract`: repo → `GraphPayload`). See [docs/phase-2.md](docs/phase-2.md).
