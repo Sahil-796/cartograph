@@ -72,16 +72,28 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
  * type below — every call site in `loadPayload` is one line through
  * here rather than a hand-rolled loop, so the batching behaviour (and
  * the ability to assert on it in tests) lives in exactly one function.
+ *
+ * `repoId` is passed as a scalar query parameter (`$repoId`) rather than
+ * read off each `row`, and the MERGE/MATCH patterns below key on
+ * `$repoId`. This is not cosmetic: measured against CognoDB, keying an
+ * `UNWIND ... MATCH (n {repoId: row.repoId, ...})` on a per-row property
+ * makes its planner fall back to a full label scan *per row* (~33 ms per
+ * edge — a 20k-edge repo times out on the free tier's per-request
+ * deadline). Hoisting `repoId` to a constant parameter lets the planner
+ * use the composite `(repoId, path)`/`(repoId, id)` indexes for the seek
+ * (~1.5 ms per edge). All rows in one load share a repo, so this is
+ * always safe.
  */
 async function runBatched(
   session: Session,
   cypher: string,
   rows: readonly unknown[],
   batchSize: number,
+  repoId: string,
 ): Promise<void> {
   for (const batch of chunk(rows, batchSize)) {
     if (batch.length === 0) continue;
-    await session.run(cypher, { batch });
+    await session.run(cypher, { batch, repoId });
   }
 }
 
@@ -109,88 +121,88 @@ function toEpochSeconds(iso: string): number {
 
 const REPO_MERGE = /* cypher */ `
 UNWIND $batch AS row
-MERGE (r:Repo {repoId: row.repoId})
+MERGE (r:Repo {repoId: $repoId})
 SET r += row
 `;
 
 const FILE_MERGE = /* cypher */ `
 UNWIND $batch AS row
-MERGE (f:File {repoId: row.repoId, path: row.path})
+MERGE (f:File {repoId: $repoId, path: row.path})
 SET f += row
 `;
 
 const SYMBOL_MERGE = /* cypher */ `
 UNWIND $batch AS row
-MERGE (s:Symbol {repoId: row.repoId, id: row.id})
+MERGE (s:Symbol {repoId: $repoId, id: row.id})
 SET s += row
 `;
 
 const ENTRYPOINT_MERGE = /* cypher */ `
 UNWIND $batch AS row
-MERGE (e:Entrypoint {repoId: row.repoId, id: row.id})
+MERGE (e:Entrypoint {repoId: $repoId, id: row.id})
 SET e += row
 `;
 
 const AUTHOR_MERGE = /* cypher */ `
 UNWIND $batch AS row
-MERGE (a:Author {repoId: row.repoId, email: row.email})
+MERGE (a:Author {repoId: $repoId, email: row.email})
 SET a += row
 `;
 
 const COMMIT_MERGE = /* cypher */ `
 UNWIND $batch AS row
-MERGE (c:Commit {repoId: row.repoId, sha: row.sha})
+MERGE (c:Commit {repoId: $repoId, sha: row.sha})
 SET c += row
 `;
 
 const IMPORTS_MERGE = /* cypher */ `
 UNWIND $batch AS row
-MATCH (from:File {repoId: row.repoId, path: row.fromPath})
-MATCH (to:File {repoId: row.repoId, path: row.toPath})
+MATCH (from:File {repoId: $repoId, path: row.fromPath})
+MATCH (to:File {repoId: $repoId, path: row.toPath})
 MERGE (from)-[rel:IMPORTS]->(to)
 `;
 
 const DEFINES_MERGE = /* cypher */ `
 UNWIND $batch AS row
-MATCH (f:File {repoId: row.repoId, path: row.filePath})
-MATCH (s:Symbol {repoId: row.repoId, id: row.symbolId})
+MATCH (f:File {repoId: $repoId, path: row.filePath})
+MATCH (s:Symbol {repoId: $repoId, id: row.symbolId})
 MERGE (f)-[rel:DEFINES]->(s)
 `;
 
 const CALLS_MERGE = /* cypher */ `
 UNWIND $batch AS row
-MATCH (from:Symbol {repoId: row.repoId, id: row.fromSymbolId})
-MATCH (to:Symbol {repoId: row.repoId, id: row.toSymbolId})
+MATCH (from:Symbol {repoId: $repoId, id: row.fromSymbolId})
+MATCH (to:Symbol {repoId: $repoId, id: row.toSymbolId})
 MERGE (from)-[rel:CALLS]->(to)
 SET rel.count = row.count
 `;
 
 const HANDLED_BY_MERGE = /* cypher */ `
 UNWIND $batch AS row
-MATCH (e:Entrypoint {repoId: row.repoId, id: row.entrypointId})
-MATCH (s:Symbol {repoId: row.repoId, id: row.symbolId})
+MATCH (e:Entrypoint {repoId: $repoId, id: row.entrypointId})
+MATCH (s:Symbol {repoId: $repoId, id: row.symbolId})
 MERGE (e)-[rel:HANDLED_BY]->(s)
 `;
 
 const CHANGED_MERGE = /* cypher */ `
 UNWIND $batch AS row
-MATCH (c:Commit {repoId: row.repoId, sha: row.sha})
-MATCH (f:File {repoId: row.repoId, path: row.path})
+MATCH (c:Commit {repoId: $repoId, sha: row.sha})
+MATCH (f:File {repoId: $repoId, path: row.path})
 MERGE (c)-[rel:CHANGED]->(f)
 SET rel.added = row.added, rel.deleted = row.deleted
 `;
 
 const AUTHORED_MERGE = /* cypher */ `
 UNWIND $batch AS row
-MATCH (a:Author {repoId: row.repoId, email: row.authorEmail})
-MATCH (c:Commit {repoId: row.repoId, sha: row.sha})
+MATCH (a:Author {repoId: $repoId, email: row.authorEmail})
+MATCH (c:Commit {repoId: $repoId, sha: row.sha})
 MERGE (a)-[rel:AUTHORED]->(c)
 `;
 
 const CO_CHANGES_MERGE = /* cypher */ `
 UNWIND $batch AS row
-MATCH (a:File {repoId: row.repoId, path: row.pathA})
-MATCH (b:File {repoId: row.repoId, path: row.pathB})
+MATCH (a:File {repoId: $repoId, path: row.pathA})
+MATCH (b:File {repoId: $repoId, path: row.pathB})
 MERGE (a)-[rel:CO_CHANGES]->(b)
 SET rel.count = row.count, rel.strength = row.strength
 `;
@@ -346,21 +358,21 @@ export async function loadPayload(payload: GraphPayload, opts: LoadOptions = {})
 
   const result = await withSession(async (session) => {
     // --- Fixed node load order --------------------------------------
-    await runBatched(session, REPO_MERGE, [repoRow], batchSize);
-    await runBatched(session, FILE_MERGE, fileRows, batchSize);
-    await runBatched(session, SYMBOL_MERGE, payload.symbols, batchSize);
-    await runBatched(session, ENTRYPOINT_MERGE, payload.entrypoints, batchSize);
-    await runBatched(session, AUTHOR_MERGE, authorRows, batchSize);
-    await runBatched(session, COMMIT_MERGE, commitRows, batchSize);
+    await runBatched(session, REPO_MERGE, [repoRow], batchSize, repoId);
+    await runBatched(session, FILE_MERGE, fileRows, batchSize, repoId);
+    await runBatched(session, SYMBOL_MERGE, payload.symbols, batchSize, repoId);
+    await runBatched(session, ENTRYPOINT_MERGE, payload.entrypoints, batchSize, repoId);
+    await runBatched(session, AUTHOR_MERGE, authorRows, batchSize, repoId);
+    await runBatched(session, COMMIT_MERGE, commitRows, batchSize, repoId);
 
     // --- Relationships, only after every endpoint label is loaded ---
-    await runBatched(session, IMPORTS_MERGE, payload.imports, batchSize);
-    await runBatched(session, DEFINES_MERGE, payload.defines, batchSize);
-    await runBatched(session, CALLS_MERGE, callRows, batchSize);
-    await runBatched(session, HANDLED_BY_MERGE, handledByRows, batchSize);
-    await runBatched(session, CHANGED_MERGE, changedRows, batchSize);
-    await runBatched(session, AUTHORED_MERGE, authoredRows, batchSize);
-    await runBatched(session, CO_CHANGES_MERGE, payload.coChanged, batchSize);
+    await runBatched(session, IMPORTS_MERGE, payload.imports, batchSize, repoId);
+    await runBatched(session, DEFINES_MERGE, payload.defines, batchSize, repoId);
+    await runBatched(session, CALLS_MERGE, callRows, batchSize, repoId);
+    await runBatched(session, HANDLED_BY_MERGE, handledByRows, batchSize, repoId);
+    await runBatched(session, CHANGED_MERGE, changedRows, batchSize, repoId);
+    await runBatched(session, AUTHORED_MERGE, authoredRows, batchSize, repoId);
+    await runBatched(session, CO_CHANGES_MERGE, payload.coChanged, batchSize, repoId);
 
     const loadResult: LoadResult = {
       nodes: {

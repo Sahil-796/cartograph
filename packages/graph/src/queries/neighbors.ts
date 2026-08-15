@@ -5,10 +5,23 @@ import { defineQuery } from "./types.js";
  * Symbols reachable from (or reaching) a given Symbol via CALLS, up to
  * `depth` hops in direction `dir`.
  *
- * Cypher gotcha: a parameter cannot sit inside a variable-length bound
- * (`[:CALLS*1..$depth]` is a syntax error). We use a fixed generous
- * ceiling of 5 hops and filter `length(p) <= $depth` instead — still
- * fully parameterised, no string concatenation.
+ * Two CognoDB-specific constraints shape this query:
+ *
+ *  1. A parameter cannot sit inside a variable-length bound
+ *     (`[:CALLS*1..$depth]` is a syntax error). We use a fixed generous
+ *     ceiling of 5 hops and filter `length(p) <= $depth` instead — still
+ *     fully parameterised, no string concatenation.
+ *
+ *  2. CognoDB silently drops every row when a parameter-only predicate
+ *     (`WHERE $dir = 'out'`) sits inside a `CALL { ... }` subquery, but
+ *     evaluates the same predicate correctly at the top level. So the two
+ *     directions are expressed as a top-level `UNION` of two guarded
+ *     branches rather than a single `CALL`/`UNION ALL` subquery. Each
+ *     branch's guard (`$dir = 'out' OR $dir = 'both'`) short-circuits the
+ *     whole branch when the direction doesn't apply.
+ *
+ * A symbol can be reached by more than one path (at different hop counts);
+ * `map` keeps the shortest and sorts by it.
  */
 
 const paramsSchema = z.object({
@@ -29,23 +42,16 @@ export interface NeighborsRow {
 
 const cypher = `
 MATCH (start:Symbol {repoId: $repoId, id: $nodeId})
-CALL {
-  WITH start
-  WHERE $dir = "out" OR $dir = "both"
-  MATCH p = (start)-[:CALLS*1..5]->(n:Symbol {repoId: $repoId})
-  WHERE length(p) <= $depth
-  RETURN n AS neighbor, length(p) AS hops
-  UNION ALL
-  WITH start
-  WHERE $dir = "in" OR $dir = "both"
-  MATCH p = (start)<-[:CALLS*1..5]-(n:Symbol {repoId: $repoId})
-  WHERE length(p) <= $depth
-  RETURN n AS neighbor, length(p) AS hops
-}
-WITH neighbor, min(hops) AS minHops
-RETURN neighbor.id AS id, neighbor.name AS name, neighbor.path AS path, minHops AS hops
-ORDER BY minHops ASC
-LIMIT 100
+WHERE $dir = "out" OR $dir = "both"
+MATCH p = (start)-[:CALLS*1..5]->(n:Symbol {repoId: $repoId})
+WHERE length(p) <= $depth
+RETURN n.id AS id, n.name AS name, n.path AS path, length(p) AS hops
+UNION
+MATCH (start:Symbol {repoId: $repoId, id: $nodeId})
+WHERE $dir = "in" OR $dir = "both"
+MATCH p = (start)<-[:CALLS*1..5]-(n:Symbol {repoId: $repoId})
+WHERE length(p) <= $depth
+RETURN n.id AS id, n.name AS name, n.path AS path, length(p) AS hops
 `;
 
 export const neighbors = defineQuery<NeighborsParams, NeighborsRow>({
@@ -58,12 +64,23 @@ export const neighbors = defineQuery<NeighborsParams, NeighborsRow>({
   // contract still holds — `NeighborsParams` (the full, defaulted shape) is
   // always accepted by `paramsSchema.parse(...)`.
   params: paramsSchema as unknown as import("zod").ZodType<NeighborsParams>,
+  map: (records) => {
+    // A neighbor can appear via several paths; keep the shortest.
+    const minHopsById = new Map<string, NeighborsRow>();
+    for (const rec of records) {
+      const hops = (rec.get("hops") as { toNumber: () => number }).toNumber();
+      const id = rec.get("id") as string;
+      const existing = minHopsById.get(id);
+      if (!existing || hops < existing.hops) {
+        minHopsById.set(id, {
+          id,
+          name: rec.get("name") as string,
+          path: rec.get("path") as string,
+          hops,
+        });
+      }
+    }
+    return [...minHopsById.values()].sort((a, b) => a.hops - b.hops).slice(0, 100);
+  },
   cypher,
-  map: (records) =>
-    records.map((rec) => ({
-      id: rec.get("id") as string,
-      name: rec.get("name") as string,
-      path: rec.get("path") as string,
-      hops: (rec.get("hops") as { toNumber: () => number }).toNumber(),
-    })),
 });

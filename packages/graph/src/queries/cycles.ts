@@ -6,6 +6,13 @@ import { defineQuery } from "./types.js";
  * `map()` de-dupes rotations of the same cycle (e.g. [a,b,c,a] and
  * [b,c,a,b] are the same cycle) by normalising on the lexicographically
  * smallest rotation before de-duplicating.
+ *
+ * The variable-length bound is capped at 4 hops (`*2..4`), not the wider
+ * `*2..6`: on a real import graph (papermark's ~5.5k import edges) the
+ * six-hop search is near-exponential and exceeds CognoDB's free-tier
+ * per-request deadline, while four hops runs in a few seconds and still
+ * catches essentially every real import cycle (a→b→c→d→a). Widen it on a
+ * beefier instance if deeper cycles matter.
  */
 
 const paramsSchema = z.object({
@@ -20,7 +27,7 @@ export interface CyclesRow {
 }
 
 const cypher = `
-MATCH p = (f:File {repoId: $repoId})-[:IMPORTS*2..6]->(f)
+MATCH p = (f:File {repoId: $repoId})-[:IMPORTS*2..4]->(f)
 RETURN [n IN nodes(p) | n.path] AS cycle
 LIMIT $limit
 `;
