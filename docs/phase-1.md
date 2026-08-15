@@ -77,9 +77,44 @@ Commits: `1deda26` (implementation), `ca7cfba` (tests).
 > into `process.env` **before** importing the `config` singleton (which exits on missing
 > env). Node 20's `--env-file=.env` or `import "dotenv/config"` both work.
 
-### `packages/graph` (driver + schema) — ⏳ Wave 2 (running)
+### `packages/graph` (driver + schema) — ✅ Wave 2a
 
-### `apps/api` skeleton + Dockerfile — ⏳ Wave 2 (running)
+The database access layer. `@cartograph/graph`, ESM, depends on `@cartograph/config`
+(`workspace:*`) and **`neo4j-driver` pinned to exactly `5.28.3`** (no caret — a future 5.x/6.x
+bump could negotiate a Bolt version above CognoDB's 5.0–5.4 range and fail silently).
+
+- `src/driver.ts` — lazy **process-lifetime singleton** `getDriver()` (importing the module
+  opens no socket), `withSession(fn)` (closes the session in `finally`), `closeDriver()`, and
+  `verifyConnectivityAndLog()` which logs the **negotiated Bolt protocol version**
+  (`ServerInfo.protocolVersion`, e.g. `5.4`) + server agent.
+- `src/schema.ts` — the five `CREATE INDEX ... IF NOT EXISTS` statements + idempotent
+  `initSchema()`.
+- `src/scripts/{db-init,db-ping}.ts` + `load-env.ts` — the runnable exit-test scripts (via
+  `tsx`); `load-env` loads the repo-root `.env` before `@cartograph/config` evaluates.
+- `db:init` / `db:ping` scripts exposed in the package; a root passthrough is added at finalize.
+
+**Verified (no live DB — the reachable surface):** typecheck clean; `db:ping` with **no
+`.env`** → the readable config error naming all 5 vars, no stack trace; `db:ping` with a
+**bogus-but-present** `.env` → past config validation, real driver *connection* error. This
+proves the config→driver→env wiring end to end; only the live round-trip waits on CognoDB.
+
+Commits: `e1dc0b4` (driver + schema), `52b22d3` (scripts + exports), `7ba47c0` (README).
+
+### `apps/api` skeleton + Dockerfile — ⏳ Wave 2b (running)
+
+## Deviations from the plan (plan vs actual)
+
+The plan is a design written before code; these are the places the build genuinely differs
+from `plan.html`. Recorded so a reviewer sees the reasoning, not a contradiction.
+
+| Plan says | What we actually did | Why |
+|-----------|----------------------|-----|
+| Bun · Turborepo · Next.js (plan body) | **Node · pnpm workspaces · React/Vite · NestJS** | Superseded by the grilling-session revisions callout at the top of `plan.html`. That callout is authoritative. |
+| `apps/worker` as a separate app | **No `apps/worker`** — the ingestion worker runs inside `apps/api` as a BullMQ forked processor | One deploy, one container; Redis does the locking. (Wired in a later phase; only the `apps/api` skeleton lands in Phase 1.) |
+| Env vars: 4 (CognoDB ×3 + Anthropic) | **5 — added `REDIS_URL`** | BullMQ ingestion queue needs Redis (Upstash free tier). |
+| `bun run db:init` / `db:ping` | **`pnpm`**, and the scripts live in `@cartograph/graph`; a root passthrough (`pnpm db:init`) is added by the orchestrator | pnpm workspaces; keeps the DB scripts co-located with the driver they use. |
+| (unspecified) build/runtime story | **Source-level TS imports run via `tsx`** — `@cartograph/config` `main` points at raw `src/index.ts`, no build step in Phase 1 | Lighter for a foundation phase; a production build pipeline is deferred to when an app needs to ship a compiled bundle. |
+| (orchestration) parallel fan-out | **Wave 2 run sequentially, not in parallel worktrees** | Git worktree isolation was unavailable (repo was `git init`'d mid-session, so the harness treats it as non-git). Two agents sharing one tree would race `pnpm install`/lockfile/git index, so units were serialized. Correctness over speed. |
 
 ## How to run it
 
@@ -97,7 +132,7 @@ pnpm db:ping   # round-trips RETURN 1, prints server + negotiated Bolt version
 |-------|--------|
 | `db:init` succeeds, and again on a second run (idempotent) | ⏳ gated on live CognoDB instance |
 | `db:ping` round-trips `RETURN 1` and prints the server version | ⏳ gated on live CognoDB instance |
-| Corrupt the password in `.env` → one-line readable error, not a stack trace | ⏳ pending config review |
+| Corrupt/absent env → readable error naming the var, not a stack trace | ✅ verified (config + graph `db:ping` no-`.env` run) |
 
 > **Blocker (expected, not a failure):** the CognoDB c0 instance is provisioned manually in
 > the vendor console — signup, create instance, capture the one-time password. That step
