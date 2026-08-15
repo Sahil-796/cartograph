@@ -6,7 +6,7 @@ const validEnv = {
   COGNODB_USER: "neo4j",
   COGNODB_PASSWORD: "s3cret",
   REDIS_URL: "redis://localhost:6379",
-  ANTHROPIC_API_KEY: "sk-ant-test-key",
+  GROQ_API_KEY: "gsk-test-key",
 };
 
 describe("parseConfig", () => {
@@ -58,7 +58,7 @@ describe("parseConfig", () => {
           "COGNODB_USER",
           "COGNODB_PASSWORD",
           "REDIS_URL",
-          "ANTHROPIC_API_KEY",
+          "GROQ_API_KEY",
         ])
       );
     }

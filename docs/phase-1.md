@@ -1,10 +1,9 @@
 # Phase 1 — Foundation
 
-> **Status:** ✅ Scaffolding complete & reviewed — all three units accepted. The only
-> remaining item is the live connectivity exit test, which is gated on provisioning the
-> CognoDB instance (a manual, credentialed step done with the user).
+> **Status:** ✅ **COMPLETE** — all three units accepted and the live connectivity exit test
+> passed against the provisioned CognoDB instance (Neo4j/5.26.0, negotiated **Bolt 5.4**).
 > **Branch:** `phase-1-foundation` · **Baseline commit:** `6ca8cde` · **Remote:** private repo `Sahil-796/cartograph`
-> Sections reflect verified work; anything still gated is marked ⏳.
+> Every exit-test criterion is green (see the table at the bottom).
 
 ## Goal
 
@@ -33,7 +32,7 @@ These come from `plan.html` §00 as sharpened by the grilling-session revisions 
 |----------|--------|---------------------|
 | Runtime / package manager | **Node 20 · pnpm workspaces** | Not Bun / Turborepo. One toolchain, standard, deploys cleanly. |
 | Env handling | **zod schema, fail-fast at boot** | A bad credential should exit with one readable line naming the var — never a driver stack trace on the first query. This is an explicit grading item. |
-| Env vars | `COGNODB_URI`, `COGNODB_USER`, `COGNODB_PASSWORD`, `REDIS_URL`, `ANTHROPIC_API_KEY` | `REDIS_URL` added for BullMQ ingestion queue (grilling revision). `.env.example` committed; `.env` never committed. |
+| Env vars | `COGNODB_URI`, `COGNODB_USER`, `COGNODB_PASSWORD`, `REDIS_URL`, `GROQ_API_KEY` | `REDIS_URL` added for BullMQ ingestion queue; `GROQ_API_KEY` replaces `ANTHROPIC_API_KEY` (chat runs on Groq). `.env.example` committed; `.env` never committed. |
 | Driver lifecycle | **One driver per process, sessions per request** | 200 connections is the free-tier ceiling; a driver-per-request exhausts it. |
 | Bolt version | **Pin `neo4j-driver` exactly, log negotiated version** | CognoDB speaks Bolt 5.0–5.4; a current driver may negotiate above that. An unpinned bump is a silent, confusing failure later. |
 | Deploy target | Frontend → Vercel; API + worker → **Azure Container Apps, one app, min=max=1** | The polling worker must stay alive — no scale-to-zero. |
@@ -62,7 +61,7 @@ The single source of truth for environment configuration; every other package im
 | Export | What it is |
 |--------|-----------|
 | `config: Config` | Validated singleton, built from `process.env` **at import time**. On failure prints a readable multi-line message and `process.exit(1)` — never a raw stack trace. |
-| `type Config` | `{ COGNODB_URI, COGNODB_USER, COGNODB_PASSWORD, REDIS_URL, ANTHROPIC_API_KEY }`, all `string`. |
+| `type Config` | `{ COGNODB_URI, COGNODB_USER, COGNODB_PASSWORD, REDIS_URL, GROQ_API_KEY }`, all `string`. |
 | `parseConfig(env)` | Pure validator — **throws** `ConfigValidationError`, never exits. Use this in tests/tools. |
 | `ConfigValidationError` | `Error` with `.issues: ZodIssue[]` and a pre-formatted `.message`. |
 | `configSchema`, `formatIssues` | Raw zod schema and the message formatter, for composition. |
@@ -159,6 +158,7 @@ from `plan.html`. Recorded so a reviewer sees the reasoning, not a contradiction
 | `bun run db:init` / `db:ping` | **`pnpm`**, and the scripts live in `@cartograph/graph`; a root passthrough (`pnpm db:init`) is added by the orchestrator | pnpm workspaces; keeps the DB scripts co-located with the driver they use. |
 | (unspecified) build/runtime story | **Source-level TS imports run via `tsx`** — `@cartograph/config` `main` points at raw `src/index.ts`, no build step in Phase 1 | Lighter for a foundation phase; a production build pipeline is deferred to when an app needs to ship a compiled bundle. |
 | (orchestration) parallel fan-out | **Wave 2 run sequentially, not in parallel worktrees** | Git worktree isolation was unavailable (repo was `git init`'d mid-session, so the harness treats it as non-git). Two agents sharing one tree would race `pnpm install`/lockfile/git index, so units were serialized. Correctness over speed. |
+| Chat AI = Claude via Anthropic SDK | **Groq + open `gpt-oss` model**; env var `ANTHROPIC_API_KEY` → **`GROQ_API_KEY`** | Cheap, fast open-weight model is plenty for a tool-calling loop over fixed queries. MCP needs no key of ours — it exposes tools; the **user's own agent** (Claude Code, etc.) supplies the reasoning. |
 
 ## How to run it
 
@@ -176,14 +176,14 @@ pnpm --filter @cartograph/api start       # boots on :3001; GET /health -> 200
 ```
 
 `.env` (copy from `.env.example`) must define `COGNODB_URI`, `COGNODB_USER`,
-`COGNODB_PASSWORD`, `REDIS_URL`, `ANTHROPIC_API_KEY`. It is gitignored and never committed.
+`COGNODB_PASSWORD`, `REDIS_URL`, `GROQ_API_KEY`. It is gitignored and never committed.
 
 ## Exit test (from the plan)
 
 | Check | Status |
 |-------|--------|
-| `db:init` succeeds, and again on a second run (idempotent) | ⏳ gated on live CognoDB instance — script written & typechecked; `IF NOT EXISTS` makes it idempotent by construction |
-| `db:ping` round-trips `RETURN 1` and prints the server version | ⏳ gated on live CognoDB instance — script written; env-load + connection-attempt paths verified against a bogus instance |
+| `db:init` succeeds, and again on a second run (idempotent) | ✅ **passed live** — ran twice, "✓ 5 indexes ensured" both times, no error on rerun |
+| `db:ping` round-trips `RETURN 1` and prints the server version | ✅ **passed live** — `RETURN 1 -> 1`, `agent: Neo4j/5.26.0`, negotiated Bolt `5.4` (inside the 5.0–5.4 range) |
 | Corrupt/absent env → readable error naming the var, not a stack trace | ✅ verified (config + graph `db:ping` no-`.env` run) |
 
 > **Blocker (expected, not a failure):** the CognoDB c0 instance is provisioned manually in

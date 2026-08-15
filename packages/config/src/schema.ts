@@ -17,9 +17,9 @@ export const configSchema = z.object({
   REDIS_URL: z
     .string({ required_error: "REDIS_URL is required" })
     .url("REDIS_URL must be a valid URL (e.g. redis://localhost:6379)"),
-  ANTHROPIC_API_KEY: z
-    .string({ required_error: "ANTHROPIC_API_KEY is required" })
-    .min(1, "ANTHROPIC_API_KEY must not be empty"),
+  GROQ_API_KEY: z
+    .string({ required_error: "GROQ_API_KEY is required" })
+    .min(1, "GROQ_API_KEY must not be empty"),
 });
 
 /** The validated, typed application config. */
