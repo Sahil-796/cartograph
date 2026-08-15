@@ -155,8 +155,8 @@ export default function MapView({ repoId }: MapViewProps) {
     cyRef.current = cy;
 
     // Interaction wiring.
-    cy.on("tap", "node[type = 'file']", (e) => setSelectedNodeId(e.target.id()));
-    cy.on("tap", "node[type = 'symbol']", (e) => setSelectedNodeId(e.target.id()));
+    cy.on("tap", "node[type = 'file']", (e) => setSelectedNodeId(e.target.id(), "file"));
+    cy.on("tap", "node[type = 'symbol']", (e) => setSelectedNodeId(e.target.id(), "symbol"));
     cy.on("tap", (e) => {
       if (e.target === cy) {
         setSelectedNodeId(null);

@@ -104,7 +104,7 @@ export default function CommandPalette({ repoId }: CommandPaletteProps) {
   const onSelect = useCallback(
     (row: SearchRow) => {
       // Focus the node (also opens the side panel) and close the palette.
-      setSelectedNodeId(row.id);
+      setSelectedNodeId(row.id, row.type);
       setOpen(false);
       // Ensure we're on the repo's map route so map + panel are visible.
       if (repoId) navigate(`/r/${repoId}`);

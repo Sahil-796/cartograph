@@ -51,6 +51,15 @@ export class ApiError extends Error {
   }
 }
 
+// Empty in local development, where Vite proxies /api to Nest. Set this at
+// Vercel build time when the API is deployed as a separate Azure service.
+const API_BASE_URL = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+
+/** Resolves an API path for local Vite proxying or the deployed API origin. */
+export function apiUrl(path: string): string {
+  return `${API_BASE_URL}${path}`;
+}
+
 /**
  * True for the two failure modes that mean "the data layer is unreachable"
  * (transport failure or a 5xx). The `<ErrorBanner>` retry UI is meant for
@@ -83,7 +92,7 @@ export async function runQuery<T>(
 ): Promise<T[]> {
   let res: Response;
   try {
-    res = await fetch(`/api/query/${encodeURIComponent(name)}`, {
+    res = await fetch(apiUrl(`/api/query/${encodeURIComponent(name)}`), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(params ?? {}),

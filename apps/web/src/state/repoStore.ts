@@ -38,6 +38,8 @@ export type PanelTab =
   | "coupling" // co-change / hidden coupling
   | "history"; // who_touched / recent commits
 
+export type SelectedNodeKind = "file" | "symbol" | "entrypoint";
+
 /** The kind of graph entity a chat citation points at. Mirrors
  * `features/chat/types.ts#CitationNode` — kept structurally compatible
  * rather than imported, so this frozen store never depends on a feature. */
@@ -58,6 +60,10 @@ export interface RepoState {
    * keys all of its fetches off this value.
    */
   selectedNodeId: string | null;
+
+  /** Entity kind of the active selection, so file-only detail queries are
+   * never run with a symbol or route id. */
+  selectedNodeKind: SelectedNodeKind | null;
 
   /** Active map colouring. Written by the map's legend/controls. */
   colourMode: ColourMode;
@@ -85,7 +91,7 @@ export interface RepoState {
    * opens the panel, so a map click / palette pick reveals the detail pane in
    * one action.
    */
-  setSelectedNodeId: (id: string | null) => void;
+  setSelectedNodeId: (id: string | null, kind?: SelectedNodeKind) => void;
 
   /** Change the map colour mode. */
   setColourMode: (mode: ColourMode) => void;
@@ -111,9 +117,10 @@ export interface RepoState {
 
 const INITIAL: Pick<
   RepoState,
-  "selectedNodeId" | "colourMode" | "depth" | "panelOpen" | "panelTab" | "highlightedNodes"
+  "selectedNodeId" | "selectedNodeKind" | "colourMode" | "depth" | "panelOpen" | "panelTab" | "highlightedNodes"
 > = {
   selectedNodeId: null,
+  selectedNodeKind: null,
   colourMode: "owner",
   depth: 2,
   panelOpen: false,
@@ -127,9 +134,10 @@ const clampDepth = (d: number): number =>
 export const useRepoStore = create<RepoState>((set) => ({
   ...INITIAL,
 
-  setSelectedNodeId: (id) =>
+  setSelectedNodeId: (id, kind = "file") =>
     set((s) => ({
       selectedNodeId: id,
+      selectedNodeKind: id === null ? null : kind,
       // Reveal the panel whenever a node is actually selected.
       panelOpen: id !== null ? true : s.panelOpen,
     })),

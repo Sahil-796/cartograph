@@ -38,6 +38,7 @@ const TABS: { id: PanelTab; label: string }[] = [
 
 export default function SidePanel({ repoId }: SidePanelProps) {
   const selectedNodeId = useRepoStore((s) => s.selectedNodeId);
+  const selectedNodeKind = useRepoStore((s) => s.selectedNodeKind);
   const panelTab = useRepoStore((s) => s.panelTab);
   const setPanelTab = useRepoStore((s) => s.setPanelTab);
 
@@ -47,6 +48,16 @@ export default function SidePanel({ repoId }: SidePanelProps) {
         icon="◎"
         title="No selection"
         description="Pick a node in the map (or press ⌘K to search) to see its owners, co-change partners, and history here."
+      />
+    );
+  }
+
+  if (selectedNodeKind && selectedNodeKind !== "file") {
+    return (
+      <EmptyState
+        icon={selectedNodeKind === "symbol" ? "ƒ" : "↗"}
+        title={`${selectedNodeKind === "symbol" ? "Symbol" : "Entrypoint"} selected`}
+        description="The map has focused this result. File ownership, test, coupling, and history evidence is available when you select a file."
       />
     );
   }

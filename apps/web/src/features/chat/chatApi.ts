@@ -9,7 +9,7 @@
  * apart from a real `500` with `isChatNotConfigured()`.
  */
 
-import { ApiError, type ApiIssue } from "../../lib/api";
+import { ApiError, apiUrl, type ApiIssue } from "../../lib/api";
 import type { ChatMessage, ChatResponse } from "./types";
 
 /** True when the failure means "chat isn't configured" (503), not a real
@@ -29,7 +29,7 @@ export async function postChat(
 ): Promise<ChatResponse> {
   let res: Response;
   try {
-    res = await fetch("/api/chat", {
+    res = await fetch(apiUrl("/api/chat"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ repoId, messages }),
