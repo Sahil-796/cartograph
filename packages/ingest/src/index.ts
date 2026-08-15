@@ -24,5 +24,14 @@ export type {
 export type { RejectionReason } from "./errors.js";
 export { IngestRejected } from "./errors.js";
 
+// The fast, clone-free gate.
+export { precheckRepo } from "./precheck.js";
+
+// Building blocks, exported for reuse and targeted testing.
+export { parseGitHubUrl, deriveRepoId } from "./slug.js";
+export type { ParsedGitHubUrl } from "./slug.js";
+export { SIZE_LIMIT_KB, SUPPORTED_LANGUAGES } from "./precheck.js";
+export type { PrecheckDeps } from "./precheck.js";
+
 // DB read helpers (cache check).
 export { repoExists, nodeCountFor } from "./db.js";
