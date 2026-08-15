@@ -8,12 +8,15 @@
   "scripts": {
     "db:init": "tsx src/scripts/db-init.ts",
     "db:ping": "tsx src/scripts/db-ping.ts",
+    "db:seed": "tsx src/scripts/db-seed.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@cartograph/config": "workspace:*",
-    "neo4j-driver": "5.28.3"
+    "@cartograph/extract": "workspace:*",
+    "neo4j-driver": "5.28.3",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

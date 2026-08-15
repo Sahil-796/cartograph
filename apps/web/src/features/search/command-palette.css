@@ -1,0 +1,165 @@
+/*
+ * ⌘K command palette — styles.
+ *
+ * Amber-Minimal, dark-first. Reuses the app's tokens (never a second accent
+ * hue). cmdk renders a Radix dialog; we style its overlay + primitives here.
+ */
+
+.cg-cmdk__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 100;
+  animation: cg-fade-in var(--dur-fast) var(--ease);
+}
+
+.cg-cmdk {
+  position: fixed;
+  top: 16vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(600px, 92vw);
+  max-height: 68vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 101;
+  animation: cg-fade-in var(--dur) var(--ease);
+}
+
+/* ---- input row ---- */
+.cg-cmdk__inputrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.cg-cmdk__search-icon {
+  color: var(--text-subtle);
+  font-size: var(--text-lg);
+  line-height: 1;
+  flex: none;
+}
+
+.cg-cmdk__input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--text-base);
+}
+
+.cg-cmdk__input::placeholder {
+  color: var(--text-subtle);
+}
+
+.cg-cmdk__input:focus-visible {
+  outline: none;
+}
+
+.cg-cmdk__esc {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+}
+
+/* ---- list ---- */
+.cg-cmdk__list {
+  overflow-y: auto;
+  padding: var(--space-2);
+  scroll-padding-block: var(--space-2);
+}
+
+.cg-cmdk__list [cmdk-group-heading] {
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.cg-cmdk__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  color: var(--text);
+  scroll-margin: var(--space-2);
+}
+
+/* cmdk marks the active item with data-selected="true" */
+.cg-cmdk__item[data-selected="true"] {
+  background: var(--c-accent-soft);
+  color: var(--text);
+}
+
+.cg-cmdk__item[data-selected="true"] .cg-cmdk__item-path {
+  color: var(--text-muted);
+}
+
+.cg-cmdk__badge {
+  flex: none;
+  width: 68px;
+  text-align: center;
+  justify-content: center;
+}
+
+.cg-cmdk__item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.cg-cmdk__item-name {
+  font-size: var(--text-sm);
+  font-weight: 550;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cg-cmdk__item-path {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- state slots (loading / empty / error / hint) ---- */
+.cg-cmdk__slot {
+  padding: var(--space-4);
+}
+
+.cg-cmdk__hint {
+  padding: var(--space-5) var(--space-4);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.cg-cmdk__skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+}
