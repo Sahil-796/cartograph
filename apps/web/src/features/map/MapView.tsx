@@ -282,10 +282,15 @@ export default function MapView({ repoId }: MapViewProps) {
   }, [colourMode, built, colourCtx, ready]);
 
   // ---- ring nodes referenced by a clicked chat citation chip ----
+  // When a citation points only at things the map doesn't draw (authors, or
+  // files with no import edges), the highlight matches nothing — surface that
+  // instead of leaving the click feeling broken.
+  const [unmappedHint, setUnmappedHint] = useState(false);
   useEffect(() => {
     const cy = cyRef.current;
     if (!cy || !ready) return;
-    applyHighlight(cy, highlightedNodes);
+    const matched = applyHighlight(cy, highlightedNodes);
+    setUnmappedHint(highlightedNodes.length > 0 && matched === 0);
   }, [highlightedNodes, ready]);
 
   // ---- decide the focus ANCHOR from the current selection ----
@@ -483,6 +488,12 @@ export default function MapView({ repoId }: MapViewProps) {
       <div ref={containerRef} className="map-canvas" aria-label="Repository graph" />
 
       {showSkeleton ? <MapSkeleton loading={loading} /> : null}
+
+      {unmappedHint && !showSkeleton ? (
+        <div className="map-hint" role="status">
+          That citation points at authors or files with no import edges — nothing to ring on the map.
+        </div>
+      ) : null}
 
       {!showSkeleton && built ? (
         <>

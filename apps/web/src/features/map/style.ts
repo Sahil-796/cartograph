@@ -166,14 +166,26 @@ export function mapStylesheet(): StylesheetStyle[] {
       style: { opacity: 0.03 },
     },
     // ---- chat citation highlight (features/chat, via repoStore) ----
+    // Node border-width/-color are set inline by the live recolour pass, which
+    // beats a stylesheet selector — so the highlight leans on the `underlay`
+    // glow (reliably applied) rather than the border, and dims everything else
+    // so the ringed node is unmistakable even before the camera settles.
+    {
+      selector: "node.cg-dim",
+      style: { opacity: 0.12 },
+    },
+    {
+      selector: "edge.cg-dim",
+      style: { opacity: 0.02 },
+    },
     {
       selector: "node.cg-highlight",
       style: {
         "border-width": 3,
         "border-color": AMBER,
         "underlay-color": AMBER,
-        "underlay-opacity": 0.35,
-        "underlay-padding": 6,
+        "underlay-opacity": 0.45,
+        "underlay-padding": 12,
         "underlay-shape": "ellipse",
         opacity: 1,
         "z-index": 90,

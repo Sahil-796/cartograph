@@ -49,8 +49,14 @@ const perRow: Record<string, (row: Row, push: (n: CitationNode | undefined) => v
   search: (row, push) => {
     // Discriminated by `type`: symbols carry path+name; files carry a path;
     // entrypoints are route paths (not map file nodes) so they're skipped.
-    if (row.type === 'symbol') push(symbolNode(row.path, row.name));
-    else if (row.type === 'file') push(fileNode(row.path));
+    if (row.type === 'symbol') {
+      push(symbolNode(row.path, row.name));
+      // A symbol's map anchor is the FILE it lives in — emit that too so the
+      // citation rings a node that actually exists on the file graph (the raw
+      // "path#name" symbol id only resolves when that file's symbol overlay is
+      // rendered, which it usually isn't).
+      push(fileNode(row.path));
+    } else if (row.type === 'file') push(fileNode(row.path));
   },
   // neighbors + path both walk the CALLS graph over Symbol nodes.
   neighbors: (row, push) => push(symbolNode(row.path, row.name)),

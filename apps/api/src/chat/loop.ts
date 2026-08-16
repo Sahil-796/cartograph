@@ -28,11 +28,21 @@ export interface LoopDeps {
   toOpenAITools: () => OpenAITool[];
 }
 
-/** Cap on the number of tool executions before we force a final, tool-less answer. */
-export const MAX_TOOL_STEPS = 6;
+/**
+ * Cap on the number of tool executions before we force a final, tool-less
+ * answer. Each step is one LLM request, so this also bounds requests-per-minute
+ * pressure on rate-limited free tiers (e.g. Gemini flash-lite's 15 rpm).
+ */
+export const MAX_TOOL_STEPS = 4;
 
-/** Rows per tool message sent back to the model — keeps `file_graph` on a big repo from blowing context. */
-const MAX_ROWS_TO_MODEL = 30;
+/**
+ * Rows per tool message sent back to the model — keeps `file_graph` on a big
+ * repo from blowing context. Kept small so a multi-step question stays under
+ * Groq's free-tier tokens-per-minute ceiling (the whole message history,
+ * including every prior tool result, is re-sent on each step). Overridable via
+ * MAX_ROWS_TO_MODEL for larger paid-tier budgets.
+ */
+const MAX_ROWS_TO_MODEL = Number(process.env.MAX_ROWS_TO_MODEL) || 8;
 
 /** Builds the system prompt: pins the repoId, enforces per-call repoId, citations, and no-invention. */
 export function buildSystemPrompt(repoId: string): string {
@@ -40,6 +50,15 @@ export function buildSystemPrompt(repoId: string): string {
     'You are Cartograph, a code-cartography assistant. You answer questions about ONE repository',
     `by calling query tools — never by guessing. The repository you operate on is repoId="${repoId}".`,
     `EVERY tool call you make MUST include "repoId": "${repoId}" in its arguments.`,
+    '',
+    `The repository is ALREADY selected (repoId="${repoId}"). NEVER ask the user which repository`,
+    'to use and NEVER say you need a repository id — you already have it. Do not refuse a question',
+    'for lacking a repository.',
+    '',
+    'Broad or open-ended questions ("what does this repo do", "give me an overview", "how is it',
+    'structured") are ANSWERABLE: answer them by calling tools and summarizing the results — start',
+    'with `entrypoints` and `file_graph`, and add `who_touched` or `hidden_coupling` as useful.',
+    'Always call at least one tool before answering; never reply from prior knowledge.',
     '',
     'Each tool result is returned to you as a JSON object with a "citationId" field (e.g. "c3") and its',
     'rows. When you state a fact drawn from a tool result, you MUST cite it inline using that result\'s',

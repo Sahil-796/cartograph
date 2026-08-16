@@ -52,6 +52,9 @@ export default function RepoChrome() {
           >
             People
           </NavLink>
+          <NavLink to="/docs" className="topbar__link">
+            Docs
+          </NavLink>
         </nav>
 
         <span className="topbar__kbd" title="Open search">

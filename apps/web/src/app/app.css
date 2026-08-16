@@ -93,8 +93,9 @@
 
 .landing-nav__brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -0.035em; }
 .landing-nav__mark { display: grid; place-items: center; width: 25px; height: 25px; background: var(--primary); color: #1c1606; font-size: 13px; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
-.landing-nav__status { display: inline-flex; align-items: center; gap: 8px; color: var(--text-subtle); font: 0.68rem/1 var(--font-mono); letter-spacing: .04em; text-transform: uppercase; }
+.landing-nav__status { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; color: var(--text-subtle); font: 0.68rem/1 var(--font-mono); letter-spacing: .04em; text-transform: uppercase; }
 .landing-nav__status i { width: 6px; height: 6px; border-radius: 50%; background: var(--c-ok); box-shadow: 0 0 0 4px color-mix(in oklch, var(--c-ok) 12%, transparent); }
+.landing-nav__nav { display: inline-flex; align-items: center; gap: var(--space-1); }
 
 .picker__hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(390px, .92fr); gap: clamp(36px, 7vw, 100px); align-items: center; min-height: min(700px, calc(100vh - 120px)); padding: clamp(60px, 10vh, 120px) 0; }
 .picker__hero-copy { position: relative; z-index: 1; max-width: 620px; }
