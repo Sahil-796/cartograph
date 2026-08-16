@@ -386,6 +386,40 @@ html {
   font-size: var(--text-sm) !important;
 }
 
+.doc-details {
+  margin-top: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklch, var(--bg-sunken) 45%, transparent);
+}
+
+.doc-details > summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 560;
+  list-style: none;
+}
+
+.doc-details > summary::before {
+  content: "＋";
+  margin-right: var(--space-2);
+  color: var(--primary);
+}
+
+.doc-details[open] > summary::before {
+  content: "－";
+}
+
+.doc-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.doc-details[open] > summary {
+  margin-bottom: var(--space-3);
+}
+
 /* ---- footer CTA ---- */
 .docs-cta {
   display: flex;

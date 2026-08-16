@@ -60,8 +60,9 @@ official `neo4j-driver`; no user input ever touches a query string.
   side panel for every node.
 - **Chat with citations**: ask questions in plain English; answers come back with
   citations that highlight the exact nodes they used on the map.
-- **MCP server**: a stdio Model Context Protocol server exposing all 13 graph
-  tools to Claude Code or any MCP client.
+- **MCP server**: a Model Context Protocol server exposing all 13 graph tools to
+  Claude Code or any MCP client — hosted over Streamable HTTP (nothing to
+  install) or run locally over stdio.
 - **Live ingestion**: paste a public GitHub URL: guardrails reject hostile input
   *before* cloning, a BullMQ worker runs clone → extract → load → evict, and the
   UI streams real phase names with live counts.
@@ -313,11 +314,22 @@ pnpm --filter @cartograph/cli dev ingest ../some/repo
 pnpm --filter @cartograph/cli dev ingest ../some/repo --out seed/my-repo.json
 ```
 
-**MCP server**: add to Claude Code's MCP config:
+**MCP server** — two ways to connect an agent:
+
+_Hosted_ (nothing to install; points at the live deployment over Streamable HTTP):
 
 ```bash
-pnpm --filter @cartograph/mcp start
+claude mcp add --transport http cartograph \
+  https://cartograph-api.greenocean-3c22b32a.centralindia.azurecontainerapps.io/api/mcp
 ```
+
+_Local_ (stdio, from a clone of this repo):
+
+```bash
+claude mcp add cartograph -- pnpm --filter @cartograph/mcp start
+```
+
+Both expose the same 13 graph tools. The hosted endpoint needs no API key.
 
 ## Project structure
 

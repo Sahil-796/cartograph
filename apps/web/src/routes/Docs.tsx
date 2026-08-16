@@ -23,14 +23,21 @@ const TOC: { id: string; label: string; part: 1 | 2 }[] = [
   { id: "mcp-prompts", label: "What to ask", part: 2 },
 ];
 
+// Hosted MCP: the deployed API exposes a Streamable HTTP MCP endpoint, so an
+// assistant can connect to the shared graph with one command — nothing to clone
+// or run locally.
+const MCP_URL = `https://cartograph-api.greenocean-3c22b32a.centralindia.azurecontainerapps.io/api/mcp`;
+
+const MCP_HTTP_COMMAND = `claude mcp add --transport http cartograph ${MCP_URL}`;
+
+// Local alternative: run the stdio MCP server yourself from a clone of the repo.
 const MCP_COMMAND = `claude mcp add cartograph -- pnpm --filter @cartograph/mcp run start`;
 
 const MCP_START = `pnpm --filter @cartograph/mcp run start`;
 
 const MCP_SETUP: string[] = [
-  "The Cartograph app running on your machine, with a codebase already loaded.",
-  "A terminal (Mac: Terminal or iTerm; Windows: PowerShell).",
   "An AI assistant that supports MCP — this guide uses Claude Code.",
+  "That's it — the map is hosted, so you don't need to install or run anything.",
 ];
 
 const MODES: { name: string; description: string }[] = [
@@ -254,34 +261,24 @@ export default function Docs() {
 
             <section className="docs-subsection" id="mcp-connect">
               <h3>Connect an assistant</h3>
+              <p>
+                Cartograph's MCP server is <strong>hosted</strong> — it's already
+                running online, so there's nothing to install. Point your
+                assistant at it with a single command.
+              </p>
               <div className="doc-steps">
                 <div className="doc-step">
                   <span className="doc-step__num">1</span>
                   <div>
                     <p>
-                      <strong>Open a terminal</strong> and go to the Cartograph
-                      folder.
+                      <strong>Tell Claude Code about it</strong> — one command in
+                      a terminal, from anywhere:
                     </p>
-                    <CodeBlock label="terminal" text={MCP_START} />
-                    <p>
-                      This starts Cartograph's MCP server. You'll see{" "}
-                      <em>"listening on stdio"</em> when it's up — leave this
-                      terminal open.
-                    </p>
+                    <CodeBlock label="terminal" text={MCP_HTTP_COMMAND} />
                   </div>
                 </div>
                 <div className="doc-step">
                   <span className="doc-step__num">2</span>
-                  <div>
-                    <p>
-                      <strong>Tell Claude Code about it</strong> with one command
-                      (in a second terminal, still inside the Cartograph folder):
-                    </p>
-                    <CodeBlock label="terminal" text={MCP_COMMAND} />
-                  </div>
-                </div>
-                <div className="doc-step">
-                  <span className="doc-step__num">3</span>
                   <div>
                     <p>
                       <strong>Restart Claude Code</strong> (or start a new chat)
@@ -290,6 +287,17 @@ export default function Docs() {
                   </div>
                 </div>
               </div>
+              <details className="doc-details">
+                <summary>Prefer to run it yourself?</summary>
+                <p>
+                  If you've cloned the repo, you can run the MCP server locally
+                  over stdio instead of using the hosted one. Start it in a
+                  terminal (leave it open):
+                </p>
+                <CodeBlock label="terminal" text={MCP_START} />
+                <p>Then register that local server with Claude Code:</p>
+                <CodeBlock label="terminal" text={MCP_COMMAND} />
+              </details>
             </section>
 
             <section className="docs-subsection" id="mcp-verify">
