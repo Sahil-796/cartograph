@@ -13,7 +13,19 @@ the same tools.
 
 The product builds the map and the roads; the AI does the driving.
 
-## Why a graph?
+## Use case
+
+A codebase is a web of relationships, not a flat list of files. Cartograph makes
+those relationships visible and queryable:
+
+- **Understand any repo fast** - see structure, ownership, and hidden coupling at
+  a glance, without reading the code.
+- **De-risk changes** - find the files that move together, the single point of
+  failure, and what would break if you edit here.
+- **Ask an AI about the code** - chat answers with citations, or plug the graph
+  into your assistant over MCP so it works from the same facts you see.
+
+## Why a graph database?
 
 A relational database asks you to decide in advance which joins matter. A codebase
 doesn't cooperate: the interesting questions are *traversals*: "which files move
@@ -36,6 +48,11 @@ That's a multi-hop reachability test over an undirected relationship, awkward to
 express in SQL, one line in Cypher. Every query is parameterised through the
 official `neo4j-driver`; no user input ever touches a query string.
 
+## Screenshots
+
+![Graph map](docs/map.png)
+
+
 ## Features
 
 - **Interactive map**: a cytoscape/fcose force-directed graph of any seeded or
@@ -49,7 +66,7 @@ official `neo4j-driver`; no user input ever touches a query string.
   *before* cloning, a BullMQ worker runs clone → extract → load → evict, and the
   UI streams real phase names with live counts.
 - **13 query tools**: a fixed, validated registry reused by all three surfaces
-  (see [The queries](#the-queries)).
+  (see [The main queries](#the-main-queries)).
 - **Designed states**: deliberate skeletons, empty states, and a friendly
   "database may be unreachable" path instead of stack traces.
 
@@ -142,15 +159,29 @@ erDiagram
 
 The schema (five indexes) is idempotent; see `packages/graph/src/schema.ts`.
 
-## The queries
+## The main queries
 
-A single registry of 13 validated queries powers every surface. Each `QueryDef`
-is one artifact: a zod schema (single source of truth for REST validation and the
-AI tool's JSON schema), parameterised Cypher, and a record mapper.
+One registry of 13 parameterised queries powers every surface - REST, chat, and
+MCP - so the AI never writes its own Cypher; it composes queries that are already
+written and tested. Each `QueryDef` is a single artifact: a zod schema (single
+source of truth for validation and the AI tool's JSON schema), parameterised
+Cypher, and a record mapper.
 
-`search` · `neighbors` · `path` · `who_touched` · `bus_factor` · `co_changed` ·
-`hidden_coupling` · `cycles` · `entrypoints` · `file_graph` · `file_metrics` ·
-`file_commits` · `tests_for_file`
+| Query | What it answers | Highlight |
+|-------|-----------------|-----------|
+| `hidden_coupling` | Which files change together but have **no import path** within 4 hops. | Flagship - invisible to SQL. |
+| `search` | Find files, symbols, and entrypoints by name or path. | Navigation. |
+| `neighbors` | What calls (or is called by) a symbol, up to N hops. | Blast radius. |
+| `path` | The shortest call path between two symbols. | Multi-hop traversal. |
+| `who_touched` | Who actually owns a file, by time-decayed change weight. | Ownership. |
+| `bus_factor` | The fewest authors whose work covers half a file - the single point of failure. | Risk. |
+| `co_changed` | Files that historically change together with a given file. | Coupling. |
+| `cycles` | Import cycles: files importing each other back into a loop. | Structure smell. |
+| `entrypoints` | All routes/handlers and the symbol each is handled by. | Surface. |
+| `file_graph` | The whole-repo file structure the map renders. | Map backend. |
+| `file_metrics` | Per-file colour attributes: owner, recency, bus factor, coverage. | Colour modes. |
+| `file_commits` | Recent commits that touched a file. | History. |
+| `tests_for_file` | Test files that import (exercise) a given file. | Safety net. |
 
 ## Architecture
 
@@ -170,19 +201,47 @@ packages/ingest URL → clone → pipeline engine (prechecks, guardrails)
 packages/tools  QueryDef → JSON Schema for AI tool-calling
 ```
 
-## Quick start
+## Setup & run
 
-Requires Node 20 and pnpm 9 (via Corepack). You need a running **CognoDB**
-(Bolt 5.0–5.4) and, for ingestion/chat, **Redis**.
+### 1. Create the CognoDB instance
+
+Cartograph stores the graph in **CognoDB** (openCypher over Bolt 5.0-5.4).
+Provision a free **c0** instance:
+
+1. Sign up at the **CognoDB console** and create a new **c0 instance**.
+2. Note the **Bolt URI** the console shows for it (e.g. `bolt://…`).
+3. When the instance is ready, the console displays a **one-time password** -
+   copy it now, it is shown only once. The username is `neo4j`.
+4. Give it a minute or two; it's online when the console says so.
+
+Requires Node 20 and pnpm 9 (via Corepack). The seeded demo needs only CognoDB;
+live ingestion adds **Redis** and chat adds a **Groq API key** (see step 5).
+
+### 2. Configure the environment
+
+```bash
+cp .env.example .env
+```
+
+Fill in the values from step 1:
+
+```bash
+COGNODB_URI=bolt://…        # your instance's Bolt URI
+COGNODB_USER=neo4j
+COGNODB_PASSWORD=…          # the one-time password from the console
+```
+
+`.env` is gitignored; only `.env.example` is committed.
+
+### 3. Install, initialise, and load the demo repos
 
 ```bash
 pnpm install
-cp .env.example .env        # fill in COGNODB_URI / COGNODB_USER / COGNODB_PASSWORD
 pnpm db:init                # ensure the 5 indexes (idempotent)
 pnpm db:seed                # load the 3 pinned demo repos (hono, drizzle-orm, papermark)
 ```
 
-Start the API and web app (Vite proxies `/api` to the API in dev):
+### 4. Run
 
 ```bash
 pnpm --filter @cartograph/api start:dev    # API on :3001
@@ -190,6 +249,12 @@ pnpm --filter @cartograph/web dev          # web on :5173
 ```
 
 Then open http://localhost:5173, pick a repo, and explore.
+
+### 5. Optional: full features
+
+- **Live ingestion** (paste a GitHub URL): provision a free Redis and set `REDIS_URL`.
+- **Chat**: set `GROQ_API_KEY` (and optionally `GROQ_MODEL`).
+- **MCP**: no extra key needed - see [Usage](#usage).
 
 ## Usage
 
