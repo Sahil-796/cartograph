@@ -111,9 +111,19 @@ describe('embedded MCP server (/api/mcp)', () => {
 
     // With no reachable CognoDB the query fails as an isError result; with a
     // live DB it succeeds against a nonexistent repoId (empty rows). Skip only
-    // when the DB is genuinely unreachable, so CI stays green.
+    // when the DB is genuinely unreachable, so CI stays green. The neo4j driver
+    // reports that in several ways depending on OS/URI: a raw socket error
+    // (ECONNREFUSED/EHOSTUNREACH/ETIMEDOUT) or a wrapped ServiceUnavailable
+    // whose message is "Failed to connect to server..." / "Could not perform
+    // discovery" with no errno token — match them all so a real query bug still
+    // fails the test but an unreachable DB doesn't.
     const text = (result.content as { text: string }[]).map((c) => c.text).join('\n');
-    if (result.isError && /failed:.*(ECONNREFUSED|Connection refused|EHOSTUNREACH|ETIMEDOUT)/i.test(text)) {
+    if (
+      result.isError &&
+      /(ECONNREFUSED|Connection refused|EHOSTUNREACH|ETIMEDOUT|Failed to connect to server|ServiceUnavailable|Could not perform discovery|connection acquisition timed out)/i.test(
+        text,
+      )
+    ) {
       ctx.skip();
       return;
     }
