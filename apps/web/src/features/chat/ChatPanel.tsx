@@ -12,12 +12,6 @@ export interface ChatPanelProps {
   repoId: string;
 }
 
-const EXAMPLES = [
-  "Who owns the router?",
-  "If the top contributor left, which entrypoints are at risk?",
-  "What's the most tightly coupled pair of files here?",
-];
-
 /** Splits an assistant answer on `[cN]` markers, rendering each as a
  * `CitationChip` when it resolves to a known citation (falls back to plain
  * text for a stray/unmatched marker). */
@@ -25,7 +19,7 @@ function renderAnswer(
   content: string,
   citations: Citation[],
   activeId: string | null,
-  onCiteClick: (c: Citation) => void,
+  onCiteClick: (c: Citation, answerText: string) => void,
 ): ReactNode[] {
   const byId = new Map(citations.map((c) => [c.id, c]));
   const marker = /\[(c\d+)\]/g;
@@ -41,7 +35,7 @@ function renderAnswer(
           key={`${match.index}-${match[1]}`}
           citation={citation}
           active={activeId === citation.id}
-          onClick={() => onCiteClick(citation)}
+          onClick={() => onCiteClick(citation, content)}
         />,
       );
     } else {
@@ -92,17 +86,18 @@ export default function ChatPanel({ repoId }: ChatPanelProps) {
     setDraft("");
   };
 
-  const handleExample = (q: string) => {
-    if (loading) return;
-    send(q);
-  };
-
-  const handleCiteClick = (citation: Citation) => {
+  const handleCiteClick = (citation: Citation, answerText: string) => {
     if (activeCitationId === citation.id) {
       clearHighlight();
       setActiveCitationId(null);
     } else {
-      highlightNodes(citation.nodes);
+      // A whole-repo tool (e.g. `file_graph`) attaches *every* file to the
+      // citation, but the sentence usually names just one or two. Highlight
+      // only the nodes the answer actually mentions, so a click points at that
+      // specific file instead of ringing the entire graph. Fall back to the
+      // full set when nothing is named (e.g. a count-only answer).
+      const named = citation.nodes.filter((n) => answerText.includes(n.ref));
+      highlightNodes(named.length > 0 ? named : citation.nodes);
       setActiveCitationId(citation.id);
     }
   };
@@ -141,18 +136,6 @@ export default function ChatPanel({ repoId }: ChatPanelProps) {
               Cartograph composes the fixed query tools and answers with citations —
               click one to highlight what it's talking about on the map.
             </p>
-            <div className="chat-empty__examples">
-              {EXAMPLES.map((q) => (
-                <button
-                  key={q}
-                  type="button"
-                  className="chat-example"
-                  onClick={() => handleExample(q)}
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
           </div>
         ) : null}
 
@@ -187,6 +170,20 @@ export default function ChatPanel({ repoId }: ChatPanelProps) {
               This deployment hasn't set an API key for the chat backend. Ask an admin
               to configure one — the map and side panel still work without it.
             </p>
+          </div>
+        ) : null}
+
+        {status === "rateLimited" ? (
+          <div className="chat-state chat-state--info">
+            <div className="chat-state__title">Rate limited</div>
+            <p className="chat-state__body">
+              {error instanceof ApiError
+                ? error.message
+                : "The free-tier model is rate limited. Wait a moment and try again."}
+            </p>
+            <button type="button" className="btn" onClick={retry}>
+              Try again
+            </button>
           </div>
         ) : null}
 

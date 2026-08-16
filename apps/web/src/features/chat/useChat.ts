@@ -10,8 +10,8 @@
  *   - "error"          — any other failure (network/500/400); `error` holds it.
  */
 
-import { useCallback, useState } from "react";
-import { postChat, isChatNotConfigured } from "./chatApi";
+import { useCallback, useRef, useState } from "react";
+import { postChat, isChatNotConfigured, isChatRateLimited } from "./chatApi";
 import type { ChatMessage, ChatRole, Citation, ChatStep } from "./types";
 
 export interface ChatTurn {
@@ -23,7 +23,7 @@ export interface ChatTurn {
   steps?: ChatStep[];
 }
 
-export type ChatStatus = "idle" | "loading" | "notConfigured" | "error";
+export type ChatStatus = "idle" | "loading" | "notConfigured" | "rateLimited" | "error";
 
 let turnSeq = 0;
 const nextId = () => `t${++turnSeq}`;
@@ -33,6 +33,17 @@ export function useChat(repoId: string) {
   const [status, setStatus] = useState<ChatStatus>("idle");
   const [error, setError] = useState<Error | null>(null);
 
+  // Mirror of `turns` for reads inside callbacks. `run` must be triggered
+  // *outside* any `setTurns` updater: React StrictMode invokes state updaters
+  // twice in dev to surface impurity, so a fetch launched from inside one fires
+  // twice and produces a duplicate assistant turn. We keep the updaters pure
+  // and drive the request from this ref instead.
+  const turnsRef = useRef<ChatTurn[]>([]);
+  const commit = useCallback((next: ChatTurn[]) => {
+    turnsRef.current = next;
+    setTurns(next);
+  }, []);
+
   const run = useCallback(
     async (history: ChatTurn[]) => {
       setStatus("loading");
@@ -40,8 +51,8 @@ export function useChat(repoId: string) {
       const wire: ChatMessage[] = history.map((t) => ({ role: t.role, content: t.content }));
       try {
         const res = await postChat(repoId, wire);
-        setTurns((prev) => [
-          ...prev,
+        commit([
+          ...history,
           {
             id: nextId(),
             role: "assistant",
@@ -53,32 +64,34 @@ export function useChat(repoId: string) {
         setStatus("idle");
       } catch (err) {
         setError(err instanceof Error ? err : new Error("Chat failed."));
-        setStatus(isChatNotConfigured(err) ? "notConfigured" : "error");
+        setStatus(
+          isChatNotConfigured(err)
+            ? "notConfigured"
+            : isChatRateLimited(err)
+              ? "rateLimited"
+              : "error",
+        );
       }
     },
-    [repoId],
+    [repoId, commit],
   );
 
   const send = useCallback(
     (content: string) => {
       const trimmed = content.trim();
       if (!trimmed || status === "loading") return;
-      setTurns((prev) => {
-        const next: ChatTurn[] = [...prev, { id: nextId(), role: "user", content: trimmed }];
-        void run(next);
-        return next;
-      });
+      const next: ChatTurn[] = [...turnsRef.current, { id: nextId(), role: "user", content: trimmed }];
+      commit(next);
+      void run(next);
     },
-    [run, status],
+    [run, status, commit],
   );
 
   /** Resend the current history as-is (e.g. after a transient 500). */
   const retry = useCallback(() => {
-    setTurns((prev) => {
-      void run(prev);
-      return prev;
-    });
-  }, [run]);
+    if (status === "loading") return;
+    void run(turnsRef.current);
+  }, [run, status]);
 
   return { turns, status, error, send, retry };
 }

@@ -22,15 +22,19 @@ describe('extractNodes', () => {
     ]);
   });
 
-  it('maps search rows to file vs symbol by type, skipping entrypoints', () => {
+  it('maps search rows to file vs symbol by type, anchoring symbols to their file and skipping entrypoints', () => {
     const rows = [
       { type: 'file', id: 'src/a.ts', name: 'src/a.ts', path: 'src/a.ts' },
       { type: 'symbol', id: 's1', name: 'handleRequest', path: 'src/router.ts' },
       { type: 'entrypoint', id: 'e1', name: '/health', path: '/health' },
     ];
+    // A symbol hit emits BOTH the symbol node and its owning file, so the
+    // citation rings a node that actually exists on the file-import map (the
+    // raw "path#name" symbol id only resolves when that file's overlay is up).
     expect(extractNodes('search', rows)).toEqual([
       { kind: 'file', ref: 'src/a.ts' },
       { kind: 'symbol', ref: 'src/router.ts#handleRequest' },
+      { kind: 'file', ref: 'src/router.ts' },
     ]);
   });
 

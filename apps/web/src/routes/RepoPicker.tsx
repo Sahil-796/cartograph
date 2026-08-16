@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { DEMO_REPOS } from "../data/repos";
 import IngestBox from "../features/ingest/IngestBox";
 
@@ -19,6 +19,9 @@ export default function RepoPicker() {
           <span>Cartograph</span>
         </div>
         <span className="landing-nav__status"><i /> Graph intelligence for codebases</span>
+        <nav className="landing-nav__nav">
+          <Link to="/docs" className="topbar__link">Docs</Link>
+        </nav>
       </header>
 
       <main>
@@ -101,9 +104,9 @@ export default function RepoPicker() {
           <div className="picker__section-heading">
             <div>
               <p className="picker__eyebrow">Start exploring</p>
-              <h2 id="demo-title">Take a guided walk through a real codebase.</h2>
+              <h2 id="demo-title">Or explore these three repos below.</h2>
             </div>
-            <p>Each map is pre-built and ready to inspect.</p>
+            <p>Each map is pre-built and ready to inspect — no setup needed.</p>
           </div>
           <div className="picker__grid">
             {DEMO_REPOS.map((repo, index) => (

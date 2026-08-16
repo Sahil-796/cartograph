@@ -471,6 +471,26 @@
 }
 
 /* ---- interactive hover tooltip ---- */
+.map-hint {
+  position: absolute;
+  top: var(--space-4);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: min(440px, 80%);
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--text);
+  background: color-mix(in oklch, var(--surface) 88%, black);
+  border: 1px solid color-mix(in oklch, var(--accent, #f0a825) 55%, var(--border-strong));
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(12px);
+  animation: cg-fade-in 140ms var(--ease);
+}
+
 .map-tooltip {
   position: absolute;
   pointer-events: none;

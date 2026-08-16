@@ -283,10 +283,31 @@
   transform: translateY(-1px);
 }
 
+.chat-chip:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .chat-chip--active {
   background: var(--c-accent);
   color: var(--text-on-accent);
   border-color: var(--c-accent);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--c-accent) 22%, transparent);
+}
+
+/* A citation whose result has no node to highlight on the map: informational,
+   not interactive. */
+.chat-chip--flat {
+  border-color: var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.chat-chip--flat:hover {
+  background: transparent;
+  border-color: var(--border);
+  transform: none;
 }
 
 .chat-chip__id {

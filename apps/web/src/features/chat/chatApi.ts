@@ -18,6 +18,12 @@ export function isChatNotConfigured(err: unknown): boolean {
   return err instanceof ApiError && err.status === 503;
 }
 
+/** True when the failure is a provider rate limit (429) — a calm "wait a moment"
+ * notice, not the scary "something went wrong" panel. */
+export function isChatRateLimited(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 429;
+}
+
 /**
  * POST a conversation to `/api/chat` and return the parsed {@link ChatResponse}.
  * Throws {@link ApiError} on any non-2xx response or transport failure.
@@ -67,6 +73,13 @@ export async function postChat(
       "server",
       body.message ?? "Chat isn't configured for this deployment.",
       503,
+    );
+  }
+  if (res.status === 429) {
+    throw new ApiError(
+      "server",
+      body.message ?? "Rate limited — please wait a moment and try again.",
+      429,
     );
   }
   throw new ApiError(

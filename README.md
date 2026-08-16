@@ -211,13 +211,35 @@ curl -X POST http://localhost:3001/api/ingest \
   -d '{"url": "https://github.com/sindresorhus/is-plain-obj"}'
 ```
 
-**Chat** (needs `GROQ_API_KEY` in `.env`):
+**Chat** (needs `GROQ_API_KEY` in `.env`; model defaults to `llama-3.3-70b-versatile`,
+override with `GROQ_MODEL`):
 
 ```bash
 curl -X POST http://localhost:3001/api/chat \
   -H "Content-Type: application/json" \
   -d '{"repoId": "papermark", "messages": [{"role": "user", "content": "Which files have the strongest hidden coupling?"}]}'
 ```
+
+The chat loop composes the tested query tools rather than inventing Cypher, and it
+treats the LLM as *unreliable* upstream — a hosted free-tier model rate-limits and
+occasionally emits malformed tool calls, so the loop degrades instead of 500-ing:
+
+- **Rate limits & transient 5xx** — Groq's free tier caps tokens-per-minute and
+  answers `429` (with a `retry-after`); those and upstream `5xx` blips are retried
+  with server-advised backoff instead of surfacing as an error.
+- **Malformed tool calls** — some models emit a tool call whose arguments violate the
+  tool's JSON schema, and Groq rejects the whole completion with `400 tool_use_failed`.
+  At `temperature: 0` that's deterministic, so the loop re-asks at escalating
+  temperature and, as a last resort, answers with tools disabled — the user gets prose,
+  never a raw failure. (This is why `llama-3.3-70b-versatile` is the default: it's far
+  more reliable at tool calling than `gpt-oss-120b`.)
+- **Token budget** — each step re-sends the full history, so tool results are capped to
+  a few rows per call (`MAX_ROWS_TO_MODEL`, default 8) to keep multi-step questions
+  under the free-tier ceiling.
+
+Model selection and these safeguards live in
+[`apps/api/src/chat/groq.ts`](apps/api/src/chat/groq.ts) and
+[`loop.ts`](apps/api/src/chat/loop.ts).
 
 **CLI: extract any local checkout** (or produce a committed seed payload):
 
@@ -272,6 +294,19 @@ doc covers what was built, why, how to run it, and how it was verified.
 | 4 | Web application - map, panel, people, ⌘K search, 13 queries | [docs/phase-4.md](docs/phase-4.md) |
 | 5 | AI surfaces - MCP server + chat with citations | [docs/phase-5.md](docs/phase-5.md) |
 | 6 | Live ingestion - guardrails, BullMQ worker, streaming UI | [docs/phase-6.md](docs/phase-6.md) |
+
+## Assumptions & limitations
+
+Scoped as a demo, not a production product:
+
+- **TypeScript/JavaScript repos only**; anything else is rejected at ingest.
+- **No auth or user accounts** - everyone shares the single CognoDB; multi-tenancy
+  is out of scope.
+- **No secondary SQL/NoSQL store** - the graph database is the only store of truth;
+  Redis is just the ingestion job broker.
+- **API and the ingestion worker share one Azure Container Apps replica**
+  (`min = max = 1`); the worker is not independently scalable.
+- **Public GitHub URLs only**, history capped at 500 commits.
 
 ## Further reading
 
